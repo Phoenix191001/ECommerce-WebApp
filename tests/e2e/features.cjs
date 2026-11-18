@@ -91,9 +91,13 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       for (const id of FEATURES) {
         if ((await sw(id).getAttribute("aria-checked")) === "true") continue;
         await sw(id).click();
-        await op.waitForTimeout(900);
         const fix = op.getByRole("button", { name: new RegExp(`Turn on ${id} with`) });
-        if (await fix.count()) { await fix.click(); await op.waitForTimeout(1200); }
+        // Wait for the server: either the switch stays on, or it offers to turn on prerequisites.
+        for (let i = 0; i < 40; i++) {
+          await op.waitForTimeout(250);
+          if (await fix.count()) { await fix.click(); await op.waitForTimeout(1500); break; }
+          if (!(await op.getByText("Saving…").count()) && (await sw(id).getAttribute("aria-checked")) === "true" && i > 3) break;
+        }
       }
       await op.reload();
       const off = [];
@@ -218,21 +222,21 @@ const see = (p, t) => p.getByText(t).first().waitFor();
 
     await step("register with newsletter, checkout with slot, gift wrap", async () => {
       await sp.goto(`${S}/account/register`);
-      await sp.getByLabel("Name").fill(SHOPPER.name);
-      await sp.getByLabel("Email").fill(SHOPPER.email);
-      await sp.getByLabel("Password").fill(SHOPPER.password);
+      await sp.getByRole("textbox", { name: "Name", exact: true }).fill(SHOPPER.name);
+      await sp.getByRole("textbox", { name: "Email", exact: true }).fill(SHOPPER.email);
+      await sp.getByLabel("Password", { exact: true }).fill(SHOPPER.password);
       await sp.getByLabel(/Email me offers/).check();
       await sp.getByRole("button", { name: "Create account" }).click();
       await see(sp, "Signed in as");
       await sp.goto(`${S}/checkout`);
-      await sp.getByLabel("Full name").fill(SHOPPER.name);
-      await sp.getByLabel("Phone").fill("03011112222");
-      await sp.getByLabel("Address").fill("45 Garden Town, Block C");
-      await sp.getByLabel("City").fill("Lahore");
+      await sp.locator("input[name=name]").fill(SHOPPER.name);
+      await sp.locator("input[name=phone]").fill("03011112222");
+      await sp.locator("input[name=address]").fill("45 Garden Town, Block C");
+      await sp.locator("input[name=city]").fill("Lahore");
       await sp.getByLabel(/Save this address/).check();
-      await sp.getByLabel("Delivery time").selectOption({ index: 1 });
+      await sp.locator("select[name=slot]").selectOption({ index: 1 });
       await sp.getByLabel(/Gift wrap this order/).check();
-      await sp.getByLabel("Gift message").fill("Happy Eid!");
+      await sp.locator("input[name=giftMessage]").fill("Happy Eid!");
       await sp.getByRole("button", { name: /Place order/ }).click();
       await see(sp, "Thank you, Hina!");
       await see(sp, "Gift wrapped");
@@ -358,8 +362,8 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       await sp.goto(`${S}/account`);
       await sp.getByRole("button", { name: "Sign out" }).click();
       await sp.goto(`${S}/account/login`);
-      await sp.getByLabel("Email").fill(SHOPPER.email);
-      await sp.getByLabel("Password").fill(SHOPPER.password);
+      await sp.getByRole("textbox", { name: "Email", exact: true }).fill(SHOPPER.email);
+      await sp.getByLabel("Password", { exact: true }).fill(SHOPPER.password);
       await sp.getByRole("button", { name: "Sign in" }).click();
       await see(sp, "Enter the 6-digit code");
       await sp.waitForTimeout(31000);

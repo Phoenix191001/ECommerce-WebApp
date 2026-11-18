@@ -708,7 +708,7 @@ export async function decideReturn(site: string, id: string, decision: "approved
   await r.save();
   if (decision === "completed") {
     const amount = r.items.reduce((n, i) => n + i.price * i.qty, 0);
-    if (store.features["F-17"]) await releaseStock(m, linesOf(r.items.map((i) => ({ ...i, name: i.name }))));
+    if (store.features["F-17"]) await releaseStock(m, linesOf(r.items.map((i) => ({ product: i.product, variant: i.variant, qty: i.qty, name: i.name }))));
     const o = await m.Order.findOne({ number: r.orderNumber });
     if (r.type === "refund" && o) {
       const already = o.refunds.reduce((n, x) => n + x.amount, 0);
