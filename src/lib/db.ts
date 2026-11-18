@@ -16,7 +16,9 @@ async function baseConnection(): Promise<Connection> {
     );
   }
   cache.promise ??= mongoose
-    .createConnection(uri, { maxPoolSize: 10, serverSelectionTimeoutMS: 10_000 })
+    // No automatic collection/index creation: it raced with store deletion and
+    // recreated empty databases. Indexes are built explicitly (see ensureIndexes).
+    .createConnection(uri, { maxPoolSize: 10, serverSelectionTimeoutMS: 10_000, autoIndex: false, autoCreate: false })
     .asPromise();
   try {
     cache.conn = await cache.promise;

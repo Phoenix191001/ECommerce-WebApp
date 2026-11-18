@@ -3,8 +3,8 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import { Types } from "mongoose";
 import { platformDb, instanceDb } from "./db";
-import { platformModels } from "./models/platform";
-import { tenantModels } from "./models/tenant";
+import { ensurePlatformIndexes, platformModels } from "./models/platform";
+import { ensureTenantIndexes, tenantModels } from "./models/tenant";
 import { validateSubdomain } from "./subdomain";
 import { defaultToggles } from "./features";
 
@@ -22,7 +22,9 @@ export const newInstanceSchema = z.object({
 export async function provisionInstance(d: z.infer<typeof newInstanceSchema>, actor: { email: string; role: "super_admin" | "system" }) {
   const sub = validateSubdomain(d.subdomain);
   if (!sub.ok) return { error: sub.error };
-  const { Plan, Instance, AuditLog } = await models();
+  const conn = await platformDb();
+  await ensurePlatformIndexes(conn);
+  const { Plan, Instance, AuditLog } = platformModels(conn);
   const plan = await Plan.findById(d.planId).lean();
   if (!plan) return { error: "That plan no longer exists. Reload the page and pick another." };
   if (await Instance.exists({ subdomain: sub.value }))
@@ -37,6 +39,7 @@ export async function provisionInstance(d: z.infer<typeof newInstanceSchema>, ac
     branding: { primaryColor: "#4f46e5", tagline: "" },
   });
   const m = tenantModels(await instanceDb(String(inst._id)));
+  await ensureTenantIndexes(m);
   await m.User.create({ email: d.ownerEmail, name: d.ownerName, role: "owner" });
   await AuditLog.create({
     instance: inst._id,

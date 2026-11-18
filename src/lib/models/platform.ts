@@ -164,3 +164,13 @@ export function platformModels(conn: Connection) {
     SuperAdmin: model<SuperAdmin>(conn, "SuperAdmin", superAdminSchema),
   };
 }
+
+let platformIndexes: Promise<unknown> | null = null;
+/** Build platform indexes once per server process (unique subdomains, plan names, admin emails). */
+export function ensurePlatformIndexes(conn: Connection) {
+  platformIndexes ??= Promise.all(Object.values(platformModels(conn)).map((m) => m.createIndexes())).catch((e) => {
+    platformIndexes = null;
+    throw e;
+  });
+  return platformIndexes;
+}

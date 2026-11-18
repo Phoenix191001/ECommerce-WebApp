@@ -301,3 +301,8 @@ export async function nextOrderNumber(m: TenantModels): Promise<number> {
   ).lean();
   return 1000 + (c?.seq ?? 1);
 }
+
+/** Build every per-instance collection's indexes (unique slugs, emails, order numbers). Run on provisioning. */
+export async function ensureTenantIndexes(m: TenantModels) {
+  await Promise.all(Object.values(m).map((model) => model.createIndexes()));
+}

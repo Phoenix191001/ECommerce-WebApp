@@ -1,7 +1,7 @@
 import "server-only";
 import { ALL_FEATURE_IDS, IMPLEMENTED, STARTER_PACK } from "./features";
 import { platformDb } from "./db";
-import { platformModels } from "./models/platform";
+import { ensurePlatformIndexes, platformModels } from "./models/platform";
 
 // FR-A-04 plan templates. Which plans launch first is an open question in the SRS,
 // so these are starting points the Super Admin can edit on the Plans page.
@@ -32,7 +32,9 @@ const TEMPLATES = [
 ];
 
 export async function ensurePlans() {
-  const { Plan } = platformModels(await platformDb());
+  const conn = await platformDb();
+  await ensurePlatformIndexes(conn);
+  const { Plan } = platformModels(conn);
   if ((await Plan.estimatedDocumentCount()) === 0) {
     await Plan.insertMany(TEMPLATES, { ordered: false }).catch(() => {});
     return;
