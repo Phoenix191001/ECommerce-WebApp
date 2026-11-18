@@ -60,7 +60,7 @@ export default async function StoreHome({ params, searchParams }: Props) {
 
   const jar = await cookies();
   const recentIds = f["F-09"] ? (jar.get(`rv_${store.id}`)?.value ?? "").split(",").filter((x) => Types.ObjectId.isValid(x)).slice(0, 8) : [];
-  let [products, categories, brands, tags, recent] = await Promise.all([
+  const [products0, categories, brands, tags, recent0] = await Promise.all([
     Product.find({ $and: and }).sort(sort).limit(60).lean(),
     f["F-06"] ? Product.distinct("category", { status: "active", category: { $ne: "" } }) : Promise.resolve([]),
     f["F-07"] ? Product.distinct("brand", { status: "active", brand: { $ne: "" } }) : Promise.resolve([]),
@@ -68,6 +68,8 @@ export default async function StoreHome({ params, searchParams }: Props) {
     recentIds.length && !search ? Product.find({ $and: [visibleFilter(f), { _id: { $in: recentIds } }] }).lean() : Promise.resolve([]),
   ]);
 
+  let products = products0;
+  let recent = recent0;
   // F-96: nothing matched exactly, so look for close spellings.
   let fuzzy = false;
   if (search && !products.length && f["F-96"]) {

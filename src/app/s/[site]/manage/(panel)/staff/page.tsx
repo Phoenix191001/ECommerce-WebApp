@@ -2,21 +2,43 @@ import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { Badge, Card, inputCls } from "@/components/admin/ui";
 import { StaffForm } from "@/components/manage/forms";
-import { removeStaff, updateStaff } from "../../manage-actions";
+import { clock, removeStaff, updateStaff } from "../../manage-actions";
 
 export const metadata = { title: "Staff" };
+
+const nowMs = () => Date.now();
+const daysAgo = (n: number) => new Date(nowMs() - n * 86400_000);
 
 export default async function Staff({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
   const store = await requireStore(site);
   const me = await requireStaff(store, "staff");
-  const staff = await (await storeModels(store)).User.find({ role: { $in: ["owner", "manager", "cashier"] } }).sort({ role: 1, name: 1 }).lean();
+  const m = await storeModels(store);
+  const staff = await m.User.find({ role: { $in: ["owner", "manager", "cashier"] } }).sort({ role: 1, name: 1 }).lean();
+  const att = store.features["F-84"] ? await m.Attendance.find({ clockIn: { $gte: daysAgo(14) } }).sort({ clockIn: -1 }).limit(100).lean() : [];
+  const myOpen = att.find((a) => String(a.staff) === String(me._id) && !a.clockOut);
+  const hours = (a: { clockIn: Date; clockOut?: Date | null }) => (((a.clockOut ? new Date(a.clockOut).getTime() : nowMs()) - new Date(a.clockIn).getTime()) / 3600_000).toFixed(1);
+  const t = (d: Date) => new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Karachi", dateStyle: "short", timeStyle: "short" });
   return (
     <>
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Staff</h1>
         <p className="text-sm text-slate-500">Owners manage everything. Managers handle catalog, orders, discounts, and the POS. Cashiers use the POS only.</p>
       </div>
+      {store.features["F-84"] && (
+        <Card title="🕒 Attendance" accent="amber" actions={
+          <form action={clock.bind(null, site, myOpen ? "out" : "in")}><button className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${myOpen ? "bg-rose-600" : "bg-emerald-600"}`}>{myOpen ? `Clock out (in since ${t(myOpen.clockIn)})` : "Clock in"}</button></form>
+        }>
+          {att.length === 0 ? <p className="text-sm text-slate-500">No shifts in the last 14 days.</p> : (
+            <ul className="divide-y divide-slate-100 text-sm">{att.map((a) => (
+              <li key={String(a._id)} className="flex flex-wrap justify-between gap-2 py-1.5">
+                <span><b>{a.name}</b> · {t(a.clockIn)} → {a.clockOut ? t(a.clockOut) : <span className="text-emerald-700">working now</span>}</span>
+                <span className="text-slate-600">{hours(a)} h</span>
+              </li>
+            ))}</ul>
+          )}
+        </Card>
+      )}
       <Card title="➕ Add staff" accent="emerald"><StaffForm site={site} canAddManager={me.role === "owner"} /></Card>
       <Card accent="sky">
         <ul className="divide-y divide-slate-100 text-sm">

@@ -8,14 +8,14 @@ import { revalidatePath } from "next/cache";
 import { Types } from "mongoose";
 import { platformDb } from "@/lib/db";
 import { platformModels } from "@/lib/models/platform";
-import { getStore, storeModels, formatMoney, type StoreContext } from "@/lib/tenant";
+import { getStore, priceOrder, storeModels, formatMoney, type StoreContext } from "@/lib/tenant";
 import { createStoreSession, destroyStoreSession, requireStaff, type Permission } from "@/lib/store-auth";
 import { loginAs } from "@/lib/store-login";
 import { applyStarterPack, applyToggle, type ToggleResult } from "@/lib/toggles";
 import { esc, sendEmail } from "@/lib/email";
 import { addProjectDomain, domainsConfigured, removeProjectDomain } from "@/lib/vercel-domains";
 import type { OrderStatus } from "@/lib/models/tenant";
-import { linesOf, releaseStock } from "@/lib/stock";
+import { linesOf, releaseStock, reserveStock } from "@/lib/stock";
 import { sendBackInStock } from "@/lib/stock-alerts";
 import { fireWebhook } from "@/lib/webhooks";
 import { rewardDelivered } from "@/lib/rewards";
@@ -255,26 +255,124 @@ export async function setOrderStatus(site: string, number: number, status: Order
 }
 
 /** Refund from the panel (owner/manager). POS refunds with limits live in the POS actions. */
+async function applyRefund(store: StoreContext, m: Awaited<ReturnType<typeof storeModels>>, number: number, amount: number, reason: string, by: string, approvedBy?: string) {
+  const o = await m.Order.findOne({ number });
+  if (!o) return;
+  const refunded = o.refunds.reduce((n, r) => n + r.amount, 0);
+  const amt = Math.min(amount, o.total - refunded);
+  if (amt <= 0) return;
+  o.refunds.push({ amount: amt, reason, by, approvedBy, at: new Date() });
+  const full = refunded + amt >= o.total;
+  o.paymentStatus = full ? "refunded" : "partially_refunded";
+  if (full) {
+    o.status = "refunded";
+    o.history.push({ status: "refunded", at: new Date(), by, note: reason });
+  }
+  await o.save();
+  await fireWebhook(store, "order.refunded", { number, amount: amt }).catch(() => {});
+}
+
+/** Refund from the panel (owner/manager). Large refunds need a second person (F-105). */
 export async function refundOrder(site: string, number: number, _: MState, form: FormData): Promise<MState> {
   const { store, user, m } = await ctx(site, "orders");
   const o = await m.Order.findOne({ number });
   if (!o) return { error: "Order not found." };
   const refunded = o.refunds.reduce((n, r) => n + r.amount, 0);
+  const pending = o.pendingRefunds.reduce((n, r) => n + r.amount, 0);
   const amount = Math.round(Number(form.get("amount") ?? 0));
   const reason = String(form.get("reason") ?? "").trim().slice(0, 200);
   if (!(amount > 0)) return { error: "Enter an amount above zero." };
-  if (amount > o.total - refunded) return { error: `You can refund at most ${formatMoney(o.total - refunded, store.currency)}.` };
-  o.refunds.push({ amount, reason, by: user.name, at: new Date() });
-  const full = refunded + amount >= o.total;
-  o.paymentStatus = full ? "refunded" : "partially_refunded";
-  if (full) {
-    o.status = "refunded";
-    o.history.push({ status: "refunded", at: new Date(), by: user.name, note: reason });
+  if (amount > o.total - refunded - pending) return { error: `You can refund at most ${formatMoney(o.total - refunded - pending, store.currency)}.` };
+  if (store.features["F-105"] && amount > store.settings.refundApprovalAbove) {
+    o.pendingRefunds.push({ amount, reason, requestedBy: user.name, at: new Date() });
+    await o.save();
+    await audit(store, actorEmail(user), "order.refund_requested", `#${number}`, undefined, amount);
+    refresh(store);
+    return { ok: `This refund is above ${formatMoney(store.settings.refundApprovalAbove, store.currency)}, so it needs approval from another owner or manager.` };
   }
-  await o.save();
+  await applyRefund(store, m, number, amount, reason, user.name);
   await audit(store, actorEmail(user), "order.refund", `#${number}`, undefined, amount);
   refresh(store);
   return { ok: `Refunded ${formatMoney(amount, store.currency)}.` };
+}
+
+/** F-105: a different owner/manager approves or rejects a pending refund. */
+export async function decidePendingRefund(site: string, number: number, refundId: string, approve: boolean) {
+  const { store, user, m } = await ctx(site, "orders");
+  if (user.role === "cashier" || !Types.ObjectId.isValid(refundId)) return;
+  const o = await m.Order.findOne({ number });
+  const pr = o?.pendingRefunds.find((x) => String(x._id) === refundId);
+  if (!o || !pr) return;
+  if (approve && pr.requestedBy === user.name && !user.imp) return; // second person required
+  o.pendingRefunds = o.pendingRefunds.filter((x) => String(x._id) !== refundId);
+  await o.save();
+  if (approve) await applyRefund(store, m, number, pr.amount, pr.reason, pr.requestedBy, user.name);
+  await audit(store, actorEmail(user), approve ? "order.refund_approved" : "order.refund_rejected", `#${number}`, undefined, pr.amount);
+  refresh(store);
+}
+
+// ---------- Order editing (F-98) ----------
+
+export async function editOrder(site: string, number: number, _: MState, form: FormData): Promise<MState> {
+  const { store, user, m } = await ctx(site, "orders");
+  if (!store.features["F-98"]) return { error: "Order editing (F-98) is off." };
+  const o = await m.Order.findOne({ number });
+  if (!o) return { error: "Order not found." };
+  if (!["pending", "confirmed"].includes(o.status) || o.channel !== "online") return { error: "Only pending or confirmed online orders can be edited." };
+  const next = o.items.map((it, i) => ({ it, qty: Math.max(0, Math.min(999, Math.floor(Number(form.get(`qty_${i}`) ?? it.qty)))) }));
+  if (!next.some((x) => x.qty > 0)) return { error: "An order needs at least one item. Cancel it instead." };
+  const more = next.filter((x) => x.qty > x.it.qty).map((x) => ({ product: String(x.it.product), variant: x.it.variant ? String(x.it.variant) : undefined, qty: x.qty - x.it.qty, name: x.it.name }));
+  const less = next.filter((x) => x.qty < x.it.qty).map((x) => ({ product: String(x.it.product), variant: x.it.variant ? String(x.it.variant) : undefined, qty: x.it.qty - x.qty, name: x.it.name }));
+  if (!more.length && !less.length) return { ok: "No changes." };
+  if (store.features["F-17"]) {
+    const r = await reserveStock(m, more);
+    if (r.short) return { error: `Not enough stock of ${r.short}.` };
+    await releaseStock(m, less);
+  }
+  const before = o.total;
+  o.items = next.filter((x) => x.qty > 0).map((x) => Object.assign(x.it, { qty: x.qty }));
+  const subtotal = o.items.reduce((n, i) => n + i.price * i.qty, 0);
+  const priced = priceOrder(store, subtotal, Math.min(o.discount, subtotal), o.delivery);
+  Object.assign(o, { subtotal: priced.subtotal, discount: priced.discount, shipping: priced.shipping, tax: priced.tax });
+  o.total = Math.max(0, priced.total + o.giftWrapFee - o.pointsDiscount - o.creditUsed);
+  o.editedAt = new Date();
+  o.history.push({ status: o.status, at: new Date(), by: user.name, note: `Edited: total ${before} → ${o.total}` });
+  await o.save();
+  await audit(store, actorEmail(user), "order.edit", `#${number}`, before, o.total);
+  refresh(store);
+  return { ok: `Order updated. New total ${formatMoney(o.total, store.currency)}.` };
+}
+
+// ---------- Expenses (F-82) and attendance (F-84) ----------
+
+export async function addExpense(site: string, _: MState, form: FormData): Promise<MState> {
+  const { store, user, m } = await ctx(site, "reports");
+  if (!store.features["F-82"]) return { error: "Expense tracking (F-82) is off." };
+  const amount = Number(form.get("amount"));
+  const dateStr = String(form.get("date") ?? "");
+  if (!(amount > 0)) return { error: "Enter the amount." };
+  const date = dateStr ? new Date(`${dateStr}T12:00:00+05:00`) : new Date();
+  await m.Expense.create({ date, amount, category: String(form.get("category") ?? "Other").slice(0, 40), note: String(form.get("note") ?? "").slice(0, 200) });
+  await audit(store, actorEmail(user), "expense.add", undefined, undefined, amount);
+  refresh(store);
+  return { ok: "Expense added." };
+}
+
+export async function deleteExpense(site: string, id: string) {
+  const { store, m } = await ctx(site, "reports");
+  if (Types.ObjectId.isValid(id)) await m.Expense.deleteOne({ _id: id });
+  refresh(store);
+}
+
+export async function clock(site: string, action: "in" | "out") {
+  const store = await getStore(site);
+  if (!store || !store.features["F-84"]) return;
+  const user = await requireStaff(store);
+  const m = await storeModels(store);
+  const open = await m.Attendance.findOne({ staff: user._id, clockOut: { $exists: false } });
+  if (action === "in" && !open) await m.Attendance.create({ staff: user._id, name: user.name, clockIn: new Date() });
+  if (action === "out" && open) { open.clockOut = new Date(); await open.save(); }
+  refresh(store);
 }
 
 // ---------- Discounts (F-27) ----------
@@ -431,6 +529,14 @@ const settingsSchema = z.object({
   seoTitle: z.string().trim().max(70).optional().default(""),
   seoDescription: z.string().trim().max(160).optional().default(""),
   lowStockAt: z.coerce.number().int().min(0).default(5),
+  giftWrapFee: z.coerce.number().min(0).default(0),
+  deliverySlots: z.string().max(1000).optional().default("").transform((v) => v.split("\n").map((x) => x.trim()).filter(Boolean).slice(0, 12)),
+  ntn: z.string().trim().max(30).optional().default(""),
+  gstNumber: z.string().trim().max(30).optional().default(""),
+  pointsPer: z.coerce.number().min(1).default(100),
+  pointValue: z.coerce.number().min(0).default(1),
+  referralReward: z.coerce.number().min(0).default(0),
+  refundApprovalAbove: z.coerce.number().min(0).default(10000),
 });
 
 export async function saveSettings(site: string, _: MState, form: FormData): Promise<MState> {

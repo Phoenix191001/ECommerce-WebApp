@@ -238,7 +238,12 @@ export function BrandingForm({ site, name, color, tagline, logoUrl, canColor }: 
   );
 }
 
-type S = { currency: string; shippingFlat: number; freeShippingThreshold: number; taxRate: number; whatsapp: string; announcement: string; pickupAddress: string; contactEmail: string; seoTitle: string; seoDescription: string; lowStockAt: number };
+type S = {
+  currency: string; shippingFlat: number; freeShippingThreshold: number; taxRate: number; whatsapp: string; announcement: string;
+  pickupAddress: string; contactEmail: string; seoTitle: string; seoDescription: string; lowStockAt: number;
+  giftWrapFee: number; deliverySlots: string[]; ntn: string; gstNumber: string; pointsPer: number; pointValue: number;
+  referralReward: number; refundApprovalAbove: number;
+};
 
 export function SettingsForm({ site, s: v, f }: { site: string; s: S; f: Record<string, boolean> }) {
   const [s, a, p] = useActionState<MState, FormData>(saveSettings.bind(null, site), undefined);
@@ -264,6 +269,25 @@ export function SettingsForm({ site, s: v, f }: { site: string; s: S; f: Record<
         <Field label="SEO title" hint={off("F-75")}><input name="seoTitle" defaultValue={v.seoTitle} maxLength={70} className={tealInput} /></Field>
         <Field label="SEO description" hint={off("F-75")}><input name="seoDescription" defaultValue={v.seoDescription} maxLength={160} className={tealInput} /></Field>
       </div>
+      <details className="rounded-xl border border-slate-200 p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-800">More checkout and order options</summary>
+        <div className="mt-3 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Delivery time slots" hint={off("F-60") ?? "One per line. Shoppers pick one at checkout."}><textarea name="deliverySlots" rows={3} defaultValue={v.deliverySlots.join("\n")} className={tealInput} /></Field>
+            <Field label="Gift wrap fee" hint={off("F-74")}><input name="giftWrapFee" type="number" min="0" defaultValue={v.giftWrapFee} className={tealInput} /></Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="NTN" hint={off("F-104") ?? "Printed on tax invoices."}><input name="ntn" defaultValue={v.ntn} className={tealInput} /></Field>
+            <Field label="GST / STRN number" hint={off("F-104")}><input name="gstNumber" defaultValue={v.gstNumber} className={tealInput} /></Field>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Field label="Spend per loyalty point" hint={off("F-28") ?? "e.g. 100 = 1 point per Rs 100."}><input name="pointsPer" type="number" min="1" defaultValue={v.pointsPer} className={tealInput} /></Field>
+            <Field label="Value of 1 point" hint={off("F-28")}><input name="pointValue" type="number" min="0" step="0.01" defaultValue={v.pointValue} className={tealInput} /></Field>
+            <Field label="Referral reward (credit)" hint={off("F-70") ?? "Both people get this."}><input name="referralReward" type="number" min="0" defaultValue={v.referralReward} className={tealInput} /></Field>
+          </div>
+          <Field label="Refunds above this need a second approver" hint={off("F-105")}><input name="refundApprovalAbove" type="number" min="0" defaultValue={v.refundApprovalAbove} className={tealInput} /></Field>
+        </div>
+      </details>
       <FormMessage state={s} />
       <button className={btnTealCls} disabled={p}>{p ? "Saving…" : "Save settings"}</button>
     </KeepForm>
