@@ -22,8 +22,24 @@ export interface Instance {
   limitOverrides?: { maxProducts?: number; maxStaff?: number; maxDomains?: number };
   branding?: { primaryColor?: string; logoUrl?: string; tagline?: string };
   currency: string;
+  settings: StoreSettings;
+  onboarding: { done: string[]; dismissed: boolean };
   subdomainChangedAt?: Date;
+  exportedAt?: Date;
   createdAt?: Date;
+}
+
+export interface StoreSettings {
+  shippingFlat: number;
+  freeShippingThreshold: number;
+  taxRate: number; // percent
+  whatsapp: string;
+  announcement: string;
+  pickupAddress: string;
+  contactEmail: string;
+  seoTitle: string;
+  seoDescription: string;
+  lowStockAt: number;
 }
 
 export interface AuditLog {
@@ -41,6 +57,10 @@ export interface SuperAdmin {
   email: string;
   passwordHash: string;
   totpSecret?: string;
+  totpEnabled: boolean;
+  failedLogins: number;
+  lockUntil?: Date;
+  checklistDismissed: boolean;
 }
 
 const planSchema = new Schema<Plan>(
@@ -83,7 +103,24 @@ const instanceSchema = new Schema<Instance>(
       tagline: { type: String, default: "" },
     },
     currency: { type: String, default: "PKR" },
+    settings: {
+      shippingFlat: { type: Number, default: 200, min: 0 },
+      freeShippingThreshold: { type: Number, default: 5000, min: 0 },
+      taxRate: { type: Number, default: 0, min: 0, max: 100 },
+      whatsapp: { type: String, default: "" },
+      announcement: { type: String, default: "" },
+      pickupAddress: { type: String, default: "" },
+      contactEmail: { type: String, default: "" },
+      seoTitle: { type: String, default: "" },
+      seoDescription: { type: String, default: "" },
+      lowStockAt: { type: Number, default: 5, min: 0 },
+    },
+    onboarding: {
+      done: { type: [String], default: [] },
+      dismissed: { type: Boolean, default: false },
+    },
     subdomainChangedAt: Date,
+    exportedAt: Date,
   },
   { timestamps: true },
 );
@@ -105,7 +142,11 @@ const superAdminSchema = new Schema<SuperAdmin>(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
-    totpSecret: String, // FR-A-08 (two-factor) — to be enabled
+    totpSecret: String, // FR-A-08
+    totpEnabled: { type: Boolean, default: false },
+    failedLogins: { type: Number, default: 0 },
+    lockUntil: Date,
+    checklistDismissed: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

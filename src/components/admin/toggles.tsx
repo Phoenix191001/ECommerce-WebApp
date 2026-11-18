@@ -1,44 +1,51 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { setToggle, setToggleLock } from "@/app/admin/actions";
 import type { Feature, FeatureGroup } from "@/lib/features";
 
+export type ToggleAction = (id: string, on: boolean, withPrereqs?: boolean) => Promise<{ error?: string; missing?: string[] }>;
+
 type Props = {
-  instanceId: string;
   groups: { group: FeatureGroup; label: string; features: Feature[] }[];
   toggles: Record<string, boolean>;
   effective: Record<string, boolean>;
   locked: string[];
   planFeatures: string[];
+  descriptions: Record<string, string>;
+  implemented: string[];
+  onToggle: ToggleAction;
+  /** Super Admin only: lock / unlock toggles. */
+  onLock?: (id: string, locked: boolean) => Promise<unknown>;
+  guideHref?: string;
 };
 
-export function ToggleBoard({ instanceId, groups, toggles, effective, locked, planFeatures }: Props) {
-  const [pending, start] = useTransition();
-  const [optimistic, setOptimistic] = useOptimistic(toggles, (s, [id, on]: [string, boolean]) => ({ ...s, [id]: on }));
-  const [message, setMessage] = useState<{ text: string; missing?: string[] } | null>(null);
-  const [filter, setFilter] = useState("");
-  const inPlan = new Set(planFeatures);
-  const lockedSet = new Set(locked);
+const GROUP_COLORS = [
+  "bg-indigo-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-sky-500",
+  "bg-violet-500", "bg-teal-500", "bg-orange-500", "bg-fuchsia-500", "bg-cyan-500",
+  "bg-lime-500", "bg-pink-500", "bg-blue-500", "bg-yellow-500", "bg-red-500",
+];
 
-  const flip = (id: string, on: boolean) =>
+export function ToggleBoard(p: Props) {
+  const [pending, start] = useTransition();
+  const [optimistic, setOptimistic] = useOptimistic(p.toggles, (s, [id, on]: [string, boolean]) => ({ ...s, [id]: on }));
+  const [message, setMessage] = useState<{ text: string; id?: string; missing?: string[] } | null>(null);
+  const [filter, setFilter] = useState("");
+  const [show, setShow] = useState<"all" | "on" | "available">("all");
+  const inPlan = new Set(p.planFeatures);
+  const locked = new Set(p.locked);
+  const impl = new Set(p.implemented);
+  const guide = p.guideHref ?? "/guide";
+
+  const run = (id: string, on: boolean, withPrereqs = false) =>
     start(async () => {
       setMessage(null);
       setOptimistic([id, on]);
-      const res = await setToggle(instanceId, id, on);
-      if (res.error) setMessage({ text: res.error, missing: res.missing });
-    });
-
-  const turnOnAll = (ids: string[]) =>
-    start(async () => {
-      setMessage(null);
-      for (const id of ids) {
-        const res = await setToggle(instanceId, id, true);
-        if (res.error) return setMessage({ text: res.error, missing: res.missing });
-      }
+      const res = await p.onToggle(id, on, withPrereqs);
+      if (res?.error) setMessage({ text: res.error, id, missing: res.missing });
     });
 
   const q = filter.trim().toLowerCase();
+  const onCount = Object.values(p.effective).filter(Boolean).length;
 
   return (
     <div className="space-y-6">
@@ -46,67 +53,93 @@ export function ToggleBoard({ instanceId, groups, toggles, effective, locked, pl
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter features (name or F-number)…"
-          className="w-full max-w-sm rounded-md border border-gray-300 px-3 py-2 text-sm"
+          placeholder="Search features by name, F-number, or description…"
+          className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
         />
-        {pending && <span className="text-sm text-gray-500">Saving…</span>}
+        <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-medium">
+          {(["all", "on", "available"] as const).map((k) => (
+            <button key={k} onClick={() => setShow(k)} className={`rounded-md px-3 py-1.5 ${show === k ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600"}`}>
+              {k === "all" ? "All" : k === "on" ? `On (${onCount})` : "In plan"}
+            </button>
+          ))}
+        </div>
+        {pending && <span className="animate-pulse text-sm text-indigo-600">Saving…</span>}
       </div>
       {message && (
-        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          <span>{message.text}</span>
-          {message.missing?.length ? (
+        <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <span>⚠️ {message.text}</span>
+          {message.missing?.length && message.id ? (
             <button
-              onClick={() => turnOnAll(message.missing!)}
-              className="rounded border border-amber-300 bg-white px-2 py-1 text-xs font-medium hover:bg-amber-100"
+              onClick={() => run(message.id!, true, true)}
+              className="rounded-md bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600"
             >
-              Turn on {message.missing.join(", ")}
+              Turn on {message.id} with {message.missing.join(", ")}
             </button>
           ) : null}
         </div>
       )}
-      {groups.map(({ group, label, features }) => {
-        const shown = features.filter((f) => !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q));
+      {p.groups.map(({ group, label, features }, gi) => {
+        const shown = features.filter((f) => {
+          if (show === "on" && !optimistic[f.id]) return false;
+          if (show === "available" && !inPlan.has(f.id)) return false;
+          return !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase() === q || f.id.toLowerCase().includes(q) || (p.descriptions[f.id] ?? "").toLowerCase().includes(q);
+        });
         if (!shown.length) return null;
         return (
           <section key={group}>
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">{label}</h3>
-            <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <span className={`h-2.5 w-2.5 rounded-full ${GROUP_COLORS[gi % GROUP_COLORS.length]}`} />
+              {label}
+            </h3>
+            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
               {shown.map((f) => {
                 const on = !!optimistic[f.id];
-                const blocked = on && !effective[f.id];
+                const blocked = on && !p.effective[f.id];
                 const allowed = inPlan.has(f.id);
-                const isLocked = lockedSet.has(f.id);
+                const isLocked = locked.has(f.id);
+                const ownerLocked = isLocked && !p.onLock;
                 return (
-                  <li key={f.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <li key={f.id} className={`flex items-start gap-3 px-4 py-3 ${on ? "bg-indigo-50/40" : ""}`}>
                     <button
                       role="switch"
                       aria-checked={on}
                       aria-label={`${f.id} ${f.name}`}
-                      disabled={pending || (!allowed && !on)}
-                      onClick={() => flip(f.id, !on)}
-                      className={`relative h-5 w-9 shrink-0 rounded-full transition ${on ? "bg-gray-900" : "bg-gray-300"} disabled:opacity-40`}
+                      disabled={pending || ownerLocked || (!allowed && !on)}
+                      onClick={() => run(f.id, !on)}
+                      className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${on ? "bg-gradient-to-r from-indigo-500 to-violet-500" : "bg-slate-300"} disabled:cursor-not-allowed disabled:opacity-40`}
                     >
-                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${on ? "left-4.5" : "left-0.5"}`} />
+                      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? "left-[22px]" : "left-0.5"}`} />
                     </button>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-900">
-                        <span className="mr-2 font-mono text-xs text-gray-500">{f.id}</span>
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-900">
+                        <span className="rounded bg-slate-100 px-1.5 font-mono text-[11px] text-slate-600">{f.id}</span>
                         {f.name}
+                        {!impl.has(f.id) && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">Coming soon</span>}
+                        {!allowed && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">Not in plan</span>}
+                        {isLocked && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-white">🔒 Locked</span>}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {f.requires.length ? `Requires ${f.requires.join(", ")}` : "No prerequisites"}
-                        {!allowed && " · Not in plan"}
-                        {blocked && <span className="text-amber-700"> · Inactive: a prerequisite is off</span>}
+                      <p className="mt-0.5 text-xs text-slate-600">{p.descriptions[f.id]}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-500">
+                        {f.requires.length ? <>Needs {f.requires.join(", ")} · </> : null}
+                        <a href={`${guide}#${f.id}`} target="_blank" className="text-indigo-600 hover:underline">Help</a>
+                        {blocked && <span className="font-medium text-amber-700"> · Inactive until its prerequisites are on</span>}
                       </p>
+                      {blocked && (
+                        <button onClick={() => run(f.id, true, true)} className="mt-1 text-xs font-semibold text-amber-700 underline">
+                          Turn on missing prerequisites
+                        </button>
+                      )}
                     </div>
-                    <button
-                      onClick={() => start(() => setToggleLock(instanceId, f.id, !isLocked))}
-                      disabled={pending}
-                      title={isLocked ? "Locked: the Store Owner can't change this" : "Lock so the Store Owner can't change it"}
-                      className={`rounded px-2 py-1 text-xs ${isLocked ? "bg-gray-900 text-white" : "text-gray-500 hover:bg-gray-100"}`}
-                    >
-                      {isLocked ? "🔒 Locked" : "Lock"}
-                    </button>
+                    {p.onLock && (
+                      <button
+                        onClick={() => start(async () => { await p.onLock!(f.id, !isLocked); })}
+                        disabled={pending}
+                        title={isLocked ? "Unlock so the Store Owner can change it" : "Lock so the Store Owner can't change it"}
+                        className={`shrink-0 rounded-md px-2 py-1 text-xs ${isLocked ? "bg-slate-800 text-white" : "text-slate-500 hover:bg-slate-100"}`}
+                      >
+                        {isLocked ? "Unlock" : "Lock"}
+                      </button>
+                    )}
                   </li>
                 );
               })}

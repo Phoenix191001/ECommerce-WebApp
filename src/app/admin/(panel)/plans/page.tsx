@@ -1,29 +1,48 @@
 import { platformDb } from "@/lib/db";
 import { platformModels } from "@/lib/models/platform";
 import { ensurePlans } from "@/lib/plans";
-import { Card } from "@/components/admin/ui";
+import { FEATURES, GROUP_LABELS, type FeatureGroup } from "@/lib/features";
+import { Badge, Card } from "@/components/admin/ui";
+import { PlanForm } from "@/components/admin/forms";
 
 export default async function PlansPage() {
   await ensurePlans();
-  const { Plan } = platformModels(await platformDb());
-  const plans = await Plan.find().sort({ name: 1 }).lean();
-  const limit = (n?: number | null) => (n ? String(n) : "Unlimited");
+  const { Plan, Instance } = platformModels(await platformDb());
+  const plans = await Plan.find().sort({ name: -1 }).lean();
+  const counts = new Map(
+    (await Instance.aggregate<{ _id: unknown; n: number }>([{ $group: { _id: "$plan", n: { $sum: 1 } } }])).map((c) => [String(c._id), c.n]),
+  );
+  const groups = (Object.keys(GROUP_LABELS) as FeatureGroup[]).map((g) => ({
+    label: GROUP_LABELS[g],
+    features: FEATURES.filter((f) => f.group === g).map((f) => ({ id: f.id, name: f.name })),
+  }));
+  const tones = ["indigo", "emerald", "amber", "rose", "sky", "violet"] as const;
   return (
     <>
-      <h1 className="text-xl font-semibold text-gray-900">Plans</h1>
-      <div className="grid gap-4 md:grid-cols-2">
-        {plans.map((p) => (
-          <Card key={String(p._id)} title={p.name}>
-            <p className="text-sm text-gray-600">{p.description}</p>
-            <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
-              <dt className="text-gray-500">Features included</dt><dd>{p.features.length}</dd>
-              <dt className="text-gray-500">Products</dt><dd>{limit(p.maxProducts)}</dd>
-              <dt className="text-gray-500">Staff</dt><dd>{limit(p.maxStaff)}</dd>
-              <dt className="text-gray-500">Custom domains</dt><dd>{p.maxDomains ?? 0}</dd>
-            </dl>
-          </Card>
-        ))}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Plans</h1>
+        <p className="text-sm text-slate-500">
+          A plan decides which features a store can use. Store owners can only switch on features their plan includes.
+        </p>
       </div>
+      {plans.map((p, i) => (
+        <Card
+          key={String(p._id)}
+          accent={tones[i % tones.length]}
+          title={<span className="flex items-center gap-2">💎 {p.name} <Badge tone="slate">{counts.get(String(p._id)) ?? 0} stores</Badge></span>}
+        >
+          <PlanForm
+            groups={groups}
+            plan={{
+              id: String(p._id), name: p.name, description: p.description, priceMonthly: p.priceMonthly,
+              features: p.features, maxProducts: p.maxProducts, maxStaff: p.maxStaff, maxDomains: p.maxDomains,
+            }}
+          />
+        </Card>
+      ))}
+      <Card title="➕ New plan" accent="sky">
+        <PlanForm groups={groups} />
+      </Card>
     </>
   );
 }

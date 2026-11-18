@@ -208,10 +208,11 @@ export const ALL_FEATURE_IDS = FEATURES.map((f) => f.id);
 export type ToggleState = Record<string, boolean>;
 
 /** Default toggle states for a new instance, limited to features the plan includes. */
-export function defaultToggles(planFeatures: string[]): ToggleState {
+export function defaultToggles(planFeatures: string[], pack: string[] = STARTER_PACK): ToggleState {
   const allowed = new Set(planFeatures);
   const state: ToggleState = {};
-  for (const f of FEATURES) state[f.id] = f.defaultOn && allowed.has(f.id);
+  const on = new Set(pack);
+  for (const f of FEATURES) state[f.id] = on.has(f.id) && allowed.has(f.id);
   return state;
 }
 
@@ -241,3 +242,41 @@ export function effectiveToggles(state: ToggleState): ToggleState {
 export function dependentsOf(id: string): string[] {
   return FEATURES.filter((f) => f.requires.includes(id)).map((f) => f.id);
 }
+
+// ---------------------------------------------------------------------------
+// Docs, starter pack, and what is wired to real behavior
+
+export { DESCRIPTIONS } from "./feature-docs";
+
+/** Features this build implements end to end. Others are saved as settings and marked "coming soon". */
+export const IMPLEMENTED = new Set(
+  [1, 3, 4, 5, 6, 7, 10, 15, 17, 18, 19, 20, 21, 22, 23, 27, 29, 31, 34, 35, 36, 37, 38, 39, 41, 48, 49,
+   50, 51, 52, 54, 58, 59, 79, 89, 101, 102, 118, 121, 122].map(fid),
+);
+
+/**
+ * Recommended starter pack: the SRS defaults plus a few features most new stores want on day one.
+ * New instances start with these (limited to their plan).
+ */
+export const STARTER_PACK: string[] = Array.from(
+  new Set([
+    ...FEATURES.filter((f) => f.defaultOn).map((f) => f.id),
+    ...[4, 10, 21, 27, 54, 58, 118, 122].map(fid),
+  ]),
+);
+
+/** Turn-on order for `id` including every prerequisite that is off (prerequisites first). */
+export function enableChain(id: string, state: ToggleState): string[] {
+  const out: string[] = [];
+  const visit = (x: string, seen: Set<string>) => {
+    if (seen.has(x)) return;
+    seen.add(x);
+    for (const r of FEATURE_MAP[x]?.requires ?? []) visit(r, seen);
+    if (!state[x] && !out.includes(x)) out.push(x);
+  };
+  visit(id, new Set());
+  return out;
+}
+
+/** Features that become usable when `id` is on (direct dependents). Alias for docs. */
+export const unlocks = (id: string) => dependentsOf(id);

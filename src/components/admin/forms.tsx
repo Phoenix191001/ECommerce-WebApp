@@ -1,8 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
-import { addProduct, createInstance, login, setupAdmin, type FormState } from "@/app/admin/actions";
-import { Field, FormMessage, btnCls, inputCls } from "./ui";
+import { useActionState, useState } from "react";
+import {
+  addProduct, createInstance, createOwnerLink, deleteInstance, login, savePlan, setupAdmin, verifyTwoFactor,
+  type FormState,
+} from "@/app/admin/actions";
+import { Field, FormMessage, btnCls, btnDangerCls, btnSecondaryCls, inputCls } from "./ui";
 
 export function AuthForm({ mode }: { mode: "setup" | "login" }) {
   const [state, action, pending] = useActionState<FormState, FormData>(mode === "setup" ? setupAdmin : login, undefined);
@@ -23,37 +26,75 @@ export function AuthForm({ mode }: { mode: "setup" | "login" }) {
       </Field>
       <FormMessage state={state} />
       <button className={`${btnCls} w-full`} disabled={pending}>
-        {pending ? "Please wait…" : mode === "setup" ? "Create Super Admin" : "Sign in"}
+        {pending ? "Please wait…" : mode === "setup" ? "Create Super Admin" : "Continue"}
       </button>
     </form>
   );
 }
 
-export function InstanceForm({ plans, rootDomain }: { plans: { id: string; name: string }[]; rootDomain: string }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(createInstance, undefined);
+export function TwoFactorForm() {
+  const [state, action, pending] = useActionState<FormState, FormData>(verifyTwoFactor, undefined);
   return (
     <form action={action} className="space-y-4">
+      <Field label="6-digit code">
+        <input
+          name="code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9 ]{6,7}"
+          maxLength={7}
+          required
+          autoFocus
+          className={`${inputCls} text-center font-mono text-xl tracking-[0.4em]`}
+        />
+      </Field>
+      <FormMessage state={state} />
+      <button className={`${btnCls} w-full`} disabled={pending}>{pending ? "Checking…" : "Verify and sign in"}</button>
+    </form>
+  );
+}
+
+export function InstanceForm({ plans, rootDomain }: { plans: { id: string; name: string; description: string }[]; rootDomain: string }) {
+  const [state, action, pending] = useActionState<FormState, FormData>(createInstance, undefined);
+  const [sub, setSub] = useState("");
+  return (
+    <form action={action} className="space-y-5">
       <Field label="Store name">
         <input name="name" required className={inputCls} placeholder="Ali's Electronics" />
       </Field>
-      <Field label="Subdomain" hint={`The store will be at <subdomain>.${rootDomain}`}>
-        <input name="subdomain" required pattern="[a-z0-9-]{3,63}" className={inputCls} placeholder="ali-electronics" />
+      <Field
+        label="Subdomain"
+        hint={<>The store will be at <b className="text-indigo-700">{sub || "subdomain"}.{rootDomain}</b>. Lowercase letters, numbers and hyphens.</>}
+      >
+        <input
+          name="subdomain"
+          required
+          pattern="[a-z0-9-]{3,63}"
+          className={inputCls}
+          placeholder="ali-electronics"
+          value={sub}
+          onChange={(e) => setSub(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+        />
       </Field>
-      <Field label="Plan">
-        <select name="planId" required className={inputCls} defaultValue={plans[0]?.id}>
-          {plans.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+      <fieldset>
+        <legend className="mb-2 text-sm font-medium text-slate-800">Plan</legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {plans.map((p, i) => (
+            <label key={p.id} className="cursor-pointer rounded-xl border-2 border-slate-200 p-3 has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50">
+              <input type="radio" name="planId" value={p.id} defaultChecked={i === 0} className="sr-only" />
+              <span className="block font-semibold text-slate-900">{p.name}</span>
+              <span className="block text-xs text-slate-600">{p.description}</span>
+            </label>
           ))}
-        </select>
-      </Field>
+        </div>
+      </fieldset>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Owner name">
-          <input name="ownerName" required className={inputCls} />
-        </Field>
-        <Field label="Owner email">
-          <input name="ownerEmail" type="email" required className={inputCls} />
-        </Field>
+        <Field label="Owner name"><input name="ownerName" required className={inputCls} /></Field>
+        <Field label="Owner email"><input name="ownerEmail" type="email" required className={inputCls} /></Field>
       </div>
+      <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-900">
+        ✨ New stores start with the <b>starter pack</b> of features turned on (limited to the plan). You can change any of them afterwards.
+      </p>
       <FormMessage state={state} />
       <button className={btnCls} disabled={pending}>{pending ? "Creating…" : "Create instance"}</button>
     </form>
@@ -69,6 +110,96 @@ export function ProductForm({ instanceId }: { instanceId: string }) {
       <Field label="Stock"><input name="stock" type="number" min="0" step="1" defaultValue="0" className={inputCls} /></Field>
       <button className={btnCls} disabled={pending}>{pending ? "Adding…" : "Add"}</button>
       <div className="sm:col-span-4"><FormMessage state={state} /></div>
+    </form>
+  );
+}
+
+export function OwnerLinkForm({ instanceId }: { instanceId: string }) {
+  const [state, action, pending] = useActionState<FormState, FormData>(createOwnerLink.bind(null, instanceId), undefined);
+  const [copied, setCopied] = useState(false);
+  const full = state?.link && typeof window !== "undefined" ? `${window.location.origin}${state.link}` : "";
+  return (
+    <form action={action} className="space-y-3">
+      <button className={btnSecondaryCls} disabled={pending}>🔑 {pending ? "Creating…" : "Create owner setup link"}</button>
+      <FormMessage state={state} />
+      {full && (
+        <div className="flex gap-2">
+          <input readOnly value={full} className={`${inputCls} font-mono text-xs`} onFocus={(e) => e.currentTarget.select()} />
+          <button
+            type="button"
+            className={btnSecondaryCls}
+            onClick={() => navigator.clipboard.writeText(full).then(() => setCopied(true))}
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+      )}
+    </form>
+  );
+}
+
+export function DeleteForm({ instanceId, subdomain }: { instanceId: string; subdomain: string }) {
+  const [state, action, pending] = useActionState<FormState, FormData>(deleteInstance.bind(null, instanceId), undefined);
+  return (
+    <form action={action} className="space-y-3">
+      <Field label={`Type "${subdomain}" to confirm`}>
+        <input name="confirm" autoComplete="off" className={inputCls} />
+      </Field>
+      <FormMessage state={state} />
+      <button className={btnDangerCls} disabled={pending}>{pending ? "Deleting…" : "Delete store permanently"}</button>
+    </form>
+  );
+}
+
+type PlanGroup = { label: string; features: { id: string; name: string }[] };
+
+export function PlanForm({
+  plan,
+  groups,
+}: {
+  plan?: { id: string; name: string; description: string; priceMonthly: number; features: string[]; maxProducts: number; maxStaff: number; maxDomains: number };
+  groups: PlanGroup[];
+}) {
+  const [state, action, pending] = useActionState<FormState, FormData>(savePlan.bind(null, plan?.id ?? null), undefined);
+  const [sel, setSel] = useState<Set<string>>(new Set(plan?.features ?? []));
+  const flip = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const setGroup = (ids: string[], on: boolean) => setSel((s) => { const n = new Set(s); ids.forEach((i) => (on ? n.add(i) : n.delete(i))); return n; });
+  return (
+    <form action={action} className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Name"><input name="name" required defaultValue={plan?.name} className={inputCls} /></Field>
+        <Field label="Price per month (PKR)"><input name="priceMonthly" type="number" min="0" defaultValue={plan?.priceMonthly ?? 0} className={inputCls} /></Field>
+      </div>
+      <Field label="Description"><input name="description" defaultValue={plan?.description} className={inputCls} /></Field>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Max products" hint="0 = unlimited"><input name="maxProducts" type="number" min="0" defaultValue={plan?.maxProducts ?? 0} className={inputCls} /></Field>
+        <Field label="Max staff" hint="0 = unlimited"><input name="maxStaff" type="number" min="0" defaultValue={plan?.maxStaff ?? 0} className={inputCls} /></Field>
+        <Field label="Custom domains"><input name="maxDomains" type="number" min="0" defaultValue={plan?.maxDomains ?? 0} className={inputCls} /></Field>
+      </div>
+      <details className="rounded-xl border border-slate-200 p-3">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-800">Included features ({sel.size})</summary>
+        <div className="mt-3 space-y-4">
+          {groups.map((g) => (
+            <div key={g.label}>
+              <div className="mb-1 flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {g.label}
+                <button type="button" className="text-indigo-600 normal-case" onClick={() => setGroup(g.features.map((f) => f.id), true)}>all</button>
+                <button type="button" className="text-slate-500 normal-case" onClick={() => setGroup(g.features.map((f) => f.id), false)}>none</button>
+              </div>
+              <div className="grid gap-1 sm:grid-cols-2">
+                {g.features.map((f) => (
+                  <label key={f.id} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="features" value={f.id} checked={sel.has(f.id)} onChange={() => flip(f.id)} className="accent-indigo-600" />
+                    <span className="font-mono text-xs text-slate-500">{f.id}</span> {f.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </details>
+      <FormMessage state={state} />
+      <button className={btnCls} disabled={pending}>{pending ? "Saving…" : plan ? "Save plan" : "Create plan"}</button>
     </form>
   );
 }
