@@ -6,24 +6,24 @@ instance from its own subdomain and its own MongoDB database. Built from the SRS
 
 **Stack:** Next.js 16 (App Router) on Vercel · MongoDB Atlas via Mongoose · Tailwind CSS.
 
-## What's in this first version
+## What's built
 
-| Area | Status |
-|---|---|
-| Feature toggle catalog F-01 to F-122 with prerequisites (`src/lib/features.ts`) | ✅ |
-| Super Admin first-run setup and sign-in (bcrypt passwords, signed session cookie) | ✅ |
-| Create instances with subdomain validation and plan (FR-A-01, FR-U-03) | ✅ |
-| Toggle features per instance; block when a prerequisite is off, one-click fix (FR-A-02/03, UX-03) | ✅ |
-| Lock toggles so the Store Owner can't change them (AC-02) | ✅ |
-| Plan templates "Starter" and "Pro" (FR-A-04) | ✅ |
-| Suspend and resume with maintenance page (FR-A-05) | ✅ |
-| Audit log of every admin change (FR-A-07, AC-07) | ✅ |
-| Database per instance, `inst_<instanceId>` (SRS 7.2, NFR-01) | ✅ |
-| Host-name routing: `<sub>.<root domain>` → store (FR-U-02) | ✅ |
-| Storefront product grid and search (F-01, F-05) | ✅ basic |
-| Super Admin two-factor login (FR-A-08) | ⏳ next |
-| Store Owner panel, staff roles, cart, checkout, payments, POS | ⏳ next |
-| Custom domains through the Vercel Domains API (F-89, FR-U-04…07) | ⏳ next |
+- **Super Admin** (`/admin`): two-factor sign-in, stores, plans, per-store feature switches with locks, owner setup links, sign in as owner, export/delete, audit log.
+- **Store owner panel** (`/manage`): setup wizard, dashboard, products (variants, sale prices, volume and wholesale prices, scheduling, tags, CSV import and bulk edit), orders (editing, refunds with two-person approval, packing slips, fraud flags), returns and exchanges, support tickets, customers (segments, store credit, wholesale), discounts, staff and attendance, profit report, content pages and blog, settings, custom domains, developer API and webhooks.
+- **Storefront**: product pages, cart and checkout (cash on delivery, delivery slots, gift wrap, points and credit), accounts (addresses, returns, support, two-factor), wishlist, reviews, Q&A, compare, recently viewed, typo-tolerant search, Urdu with right-to-left layout, dark mode, sitemap, product feed, installable app manifest.
+- **POS**: shifts, barcode scanning (per variant), cash sales, refunds with manager PIN, receipts.
+
+The feature guide at `/guide` lists all 122 switches. 98 work today; the rest are marked "Coming soon" and mostly need outside services (payment gateways, SMS, social login, AI, file storage).
+
+## Tests
+
+```bash
+npm test                                    # unit tests: feature rules, pricing, search, CSV, URL safety
+npm run test:e2e -- <previewUrl> <shareToken>   # full browser walk-through (Playwright)
+node tests/e2e/features.cjs <previewUrl> <shareToken>  # extended features walk-through
+```
+
+Run the browser tests only against a preview whose `PLATFORM_DB_NAME` points at a throwaway database.
 
 ## Run locally
 
