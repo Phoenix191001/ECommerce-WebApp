@@ -7,6 +7,7 @@ import {
   type MState,
 } from "@/app/s/[site]/manage/manage-actions";
 import { Field, FormMessage, btnTealCls, inputCls } from "@/components/admin/ui";
+import { ImageField } from "./image-field";
 
 const tealInput = inputCls.replaceAll("indigo", "emerald");
 
@@ -58,7 +59,7 @@ function Section({ title, children, open }: { title: string; children: React.Rea
   );
 }
 
-export function ProductEditor({ site, product, categories, features = {} }: { site: string; product?: P; categories: string[]; features?: Record<string, boolean> }) {
+export function ProductEditor({ site, product, categories, features = {}, uploadUrl, storeId }: { site: string; product?: P; categories: string[]; features?: Record<string, boolean>; uploadUrl: string; storeId: string }) {
   const [s, a, p] = useActionState<MState, FormData>(saveProduct.bind(null, site, product?.id ?? null), undefined);
   const f = features;
   // datetime-local is in the browser's zone; convert Pakistan-time text back to UTC on submit.
@@ -85,9 +86,10 @@ export function ProductEditor({ site, product, categories, features = {} }: { si
         <Field label="SKU"><input name="sku" defaultValue={product?.sku} className={tealInput} /></Field>
         <Field label="Barcode" hint="Used by the POS scanner."><input name="barcode" defaultValue={product?.barcode} className={tealInput} /></Field>
       </div>
-      <Field label="Image URLs" hint="One per line. The first is the main photo.">
-        <textarea name="images" rows={3} defaultValue={product?.images?.join("\n")} className={`${tealInput} font-mono text-xs`} placeholder="https://…" />
-      </Field>
+      <div className="space-y-1">
+        <span className="text-sm font-medium text-slate-800">Photos</span>
+        <ImageField name="images" initial={product?.images ?? []} uploadUrl={uploadUrl} folder={`stores/${storeId}/products`} />
+      </div>
       <Field label="Description"><textarea name="description" rows={5} defaultValue={product?.description} className={tealInput} /></Field>
 
       {f["F-02"] && (
@@ -197,7 +199,7 @@ export function StaffForm({ site, canAddManager }: { site: string; canAddManager
   );
 }
 
-export function BrandingForm({ site, name, color, tagline, logoUrl, canColor }: { site: string; name: string; color: string; tagline: string; logoUrl?: string | null; canColor: boolean }) {
+export function BrandingForm({ site, name, color, tagline, logoUrl, canColor, uploadUrl, storeId }: { site: string; name: string; color: string; tagline: string; logoUrl?: string | null; canColor: boolean; uploadUrl: string; storeId: string }) {
   const [s, a, p] = useActionState<MState, FormData>(saveBranding.bind(null, site), undefined);
   const [c, setC] = useState(color);
   const [n, setN] = useState(name);
@@ -207,7 +209,10 @@ export function BrandingForm({ site, name, color, tagline, logoUrl, canColor }: 
       <div className="space-y-4">
         <Field label="Store name"><input name="name" value={n} onChange={(e) => setN(e.target.value)} required className={tealInput} /></Field>
         <Field label="Tagline" hint="One line under the store name."><input name="tagline" defaultValue={tagline} className={tealInput} placeholder="Quality gadgets, delivered fast" /></Field>
-        <Field label="Logo URL (optional)"><input name="logoUrl" defaultValue={logoUrl ?? ""} className={tealInput} placeholder="https://…/logo.png" /></Field>
+        <div className="space-y-1">
+          <span className="text-sm font-medium text-slate-800">Logo (optional)</span>
+          <ImageField name="logoUrl" single initial={logoUrl ? [logoUrl] : []} uploadUrl={uploadUrl} folder={`stores/${storeId}/branding`} />
+        </div>
         <div>
           <span className="text-sm font-medium text-slate-800">Brand color</span>
           {!canColor && <p className="text-xs text-amber-700">Turn on F-15 (theme switching) to change it.</p>}

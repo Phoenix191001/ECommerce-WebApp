@@ -2,6 +2,7 @@
 
 import { KeepForm } from "@/components/keep-form";
 import { useActionState, useState } from "react";
+import { fill, type Dict } from "@/lib/i18n";
 import { addReview, applyCode, customerLogin, placeOrder, register, trackOrder, type ShopState } from "@/app/s/[site]/shop-actions";
 
 export const field =
@@ -43,9 +44,10 @@ type CheckoutProps = {
   giftWrapFee?: string | null;
   points?: { balance: number; worth: string } | null;
   credit?: { balance: string } | null;
+  t: Dict;
 };
 
-export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, totalLabel, addresses = [], canSaveAddress, slots = [], giftWrapFee, points, credit }: CheckoutProps) {
+export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, totalLabel, addresses = [], canSaveAddress, slots = [], giftWrapFee, points, credit, t }: CheckoutProps) {
   const [s, a, p] = useActionState<ShopState, FormData>(placeOrder.bind(null, site), undefined);
   const [delivery, setDelivery] = useState<"shipping" | "pickup">("shipping");
   const [addr, setAddr] = useState(defaults);
@@ -54,22 +56,22 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
   return (
     <KeepForm action={a} className="space-y-6">
       <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">1</span> Contact</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">1</span> {t.contact}</h2>
         <div className="grid gap-3 sm:grid-cols-2">
-          <L label="Full name"><input name="name" required defaultValue={defaults.name} autoComplete="name" className={field} /></L>
-          <L label="Phone"><input name="phone" required value={addr.phone} onChange={(e) => setAddr({ ...addr, phone: e.target.value })} autoComplete="tel" className={field} placeholder="03xx xxxxxxx" /></L>
+          <L label={t.fullName}><input name="name" required defaultValue={defaults.name} autoComplete="name" className={field} /></L>
+          <L label={t.phone}><input name="phone" required value={addr.phone} onChange={(e) => setAddr({ ...addr, phone: e.target.value })} autoComplete="tel" className={field} placeholder="03xx xxxxxxx" /></L>
         </div>
-        <L label="Email"><input name="email" type="email" required defaultValue={defaults.email} autoComplete="email" className={field} /></L>
+        <L label={t.email}><input name="email" type="email" required defaultValue={defaults.email} autoComplete="email" className={field} /></L>
       </section>
 
       <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">2</span> Delivery</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">2</span> {t.deliverySection}</h2>
         {pickup && (
           <div className="grid grid-cols-2 gap-2">
             {(["shipping", "pickup"] as const).map((d) => (
               <label key={d} className={`cursor-pointer rounded-xl border-2 p-3 text-sm ${delivery === d ? "border-brand bg-brand-soft" : "border-slate-200"}`}>
                 <input type="radio" name="delivery" value={d} checked={delivery === d} onChange={() => setDelivery(d)} className="sr-only" />
-                <b>{d === "shipping" ? "🚚 Deliver to me" : "🏬 Pick up"}</b>
+                <b>{d === "shipping" ? t.deliverToMe : t.pickUp}</b>
                 {d === "pickup" && pickupAddress && <span className="block text-xs text-slate-600">{pickupAddress}</span>}
               </label>
             ))}
@@ -88,32 +90,32 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
         )}
         {delivery === "shipping" && (
           <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
-            <L label="Address"><input name="address" required value={addr.address} onChange={(e) => setAddr({ ...addr, address: e.target.value })} autoComplete="street-address" className={field} /></L>
-            <L label="City"><input name="city" required value={addr.city} onChange={(e) => setAddr({ ...addr, city: e.target.value })} autoComplete="address-level2" className={field} /></L>
+            <L label={t.address}><input name="address" required value={addr.address} onChange={(e) => setAddr({ ...addr, address: e.target.value })} autoComplete="street-address" className={field} /></L>
+            <L label={t.city}><input name="city" required value={addr.city} onChange={(e) => setAddr({ ...addr, city: e.target.value })} autoComplete="address-level2" className={field} /></L>
           </div>
         )}
         {delivery === "shipping" && canSaveAddress && (
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="saveAddress" value="1" /> Save this address to my account</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="saveAddress" value="1" /> {t.saveAddress}</label>
         )}
         {delivery === "shipping" && slots.length > 0 && (
-          <L label="Delivery time">
+          <L label={t.deliveryTime}>
             <select name="slot" required defaultValue="" className={field}>
-              <option value="" disabled>Choose a time slot</option>
+              <option value="" disabled>{t.chooseSlot}</option>
               {slots.map((x) => <option key={x}>{x}</option>)}
             </select>
           </L>
         )}
         {giftWrapFee && (
           <div className="space-y-2 rounded-xl bg-slate-50 p-3">
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="giftWrap" value="1" checked={gift} onChange={(e) => setGift(e.target.checked)} /> 🎁 Gift wrap this order (+{giftWrapFee})</label>
-            {gift && <input name="giftMessage" maxLength={300} placeholder="Gift message (optional)" aria-label="Gift message" className={field} />}
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="giftWrap" value="1" checked={gift} onChange={(e) => setGift(e.target.checked)} /> {t.giftWrap} (+{giftWrapFee})</label>
+            {gift && <input name="giftMessage" maxLength={300} placeholder={t.giftMessage} aria-label={t.giftMessage} className={field} />}
           </div>
         )}
-        <L label="Note for the store (optional)"><input name="note" className={field} /></L>
+        <L label={t.noteForStore}><input name="note" className={field} /></L>
       </section>
 
       <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">3</span> Payment</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">3</span> {t.payment}</h2>
         <div className="space-y-2">
           {methods.map((m) => (
             <label key={m.id} className={`flex items-start gap-3 rounded-xl border-2 p-3 text-sm has-[:checked]:border-brand has-[:checked]:bg-brand-soft ${m.available ? "cursor-pointer border-slate-200" : "cursor-not-allowed border-slate-100 opacity-50"}`}>
@@ -124,53 +126,53 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
         </div>
         {(points || credit) && (
           <div className="space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
-            {points && points.balance > 0 && <label className="flex items-center gap-2"><input type="checkbox" name="usePoints" value="1" /> ⭐ Use my {points.balance} points (worth {points.worth})</label>}
-            {credit && <label className="flex items-center gap-2"><input type="checkbox" name="useCredit" value="1" /> 💳 Use my store credit ({credit.balance})</label>}
+            {points && points.balance > 0 && <label className="flex items-center gap-2"><input type="checkbox" name="usePoints" value="1" /> {fill(t.usePoints, { n: points.balance, amount: points.worth })}</label>}
+            {credit && <label className="flex items-center gap-2"><input type="checkbox" name="useCredit" value="1" /> {fill(t.useCredit, { amount: credit.balance })}</label>}
           </div>
         )}
       </section>
       <Msg s={s} />
-      <button className="btn-brand w-full !py-3 text-base" disabled={p || !first}>{p ? "Placing order…" : `Place order · ${totalLabel}`}</button>
+      <button className="btn-brand w-full !py-3 text-base" disabled={p || !first}>{p ? t.placingOrder : `${t.placeOrder} · ${totalLabel}`}</button>
     </KeepForm>
   );
 }
 
-export function LoginForm({ site }: { site: string }) {
+export function LoginForm({ site, t }: { site: string; t: Dict }) {
   const [s, a, p] = useActionState<ShopState, FormData>(customerLogin.bind(null, site), undefined);
   return (
     <KeepForm action={a} className="space-y-3">
-      <L label="Email"><input name="email" type="email" required autoComplete="email" className={field} /></L>
-      <L label="Password"><input name="password" type="password" required autoComplete="current-password" className={field} /></L>
-      {s?.needCode && <L label="6-digit code"><input name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={7} autoFocus className={`${field} text-center font-mono tracking-widest`} /></L>}
+      <L label={t.email}><input name="email" type="email" required autoComplete="email" className={field} /></L>
+      <L label={t.password}><input name="password" type="password" required autoComplete="current-password" className={field} /></L>
+      {s?.needCode && <L label={t.code6}><input name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={7} autoFocus className={`${field} text-center font-mono tracking-widest`} /></L>}
       <Msg s={s} />
-      <button className="btn-brand w-full" disabled={p}>{p ? "Signing in…" : "Sign in"}</button>
+      <button className="btn-brand w-full" disabled={p}>{p ? t.signingIn : t.signIn}</button>
     </KeepForm>
   );
 }
 
-export function RegisterForm({ site, referral, newsletter, refCode }: { site: string; referral?: boolean; newsletter?: boolean; refCode?: string }) {
+export function RegisterForm({ site, referral, newsletter, refCode, t }: { site: string; referral?: boolean; newsletter?: boolean; refCode?: string; t: Dict }) {
   const [s, a, p] = useActionState<ShopState, FormData>(register.bind(null, site), undefined);
   return (
     <KeepForm action={a} className="space-y-3">
-      <L label="Name"><input name="name" required autoComplete="name" className={field} /></L>
-      <L label="Email"><input name="email" type="email" required autoComplete="email" className={field} /></L>
-      <L label="Password"><input name="password" type="password" required minLength={8} autoComplete="new-password" className={field} /></L>
-      {referral && <L label="Referral code (optional)"><input name="referral" defaultValue={refCode} className={`${field} uppercase`} /></L>}
-      {newsletter && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="newsletter" value="1" /> Email me offers and news</label>}
+      <L label={t.name}><input name="name" required autoComplete="name" className={field} /></L>
+      <L label={t.email}><input name="email" type="email" required autoComplete="email" className={field} /></L>
+      <L label={t.password}><input name="password" type="password" required minLength={8} autoComplete="new-password" className={field} /></L>
+      {referral && <L label={t.referralCode}><input name="referral" defaultValue={refCode} className={`${field} uppercase`} /></L>}
+      {newsletter && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="newsletter" value="1" /> {t.emailOffers}</label>}
       <Msg s={s} />
-      <button className="btn-brand w-full" disabled={p}>{p ? "Creating…" : "Create account"}</button>
+      <button className="btn-brand w-full" disabled={p}>{p ? t.creating : t.createAccount}</button>
     </KeepForm>
   );
 }
 
-export function TrackForm({ site }: { site: string }) {
+export function TrackForm({ site, t }: { site: string; t: Dict }) {
   const [s, a, p] = useActionState<ShopState, FormData>(trackOrder.bind(null, site), undefined);
   return (
     <KeepForm action={a} className="space-y-3">
-      <L label="Order number"><input name="number" required inputMode="numeric" placeholder="1001" className={field} /></L>
-      <L label="Email used for the order"><input name="email" type="email" required className={field} /></L>
+      <L label={t.orderNumber}><input name="number" required inputMode="numeric" placeholder="1001" className={field} /></L>
+      <L label={t.orderEmail}><input name="email" type="email" required className={field} /></L>
       <Msg s={s} />
-      <button className="btn-brand w-full" disabled={p}>{p ? "Looking up…" : "Track order"}</button>
+      <button className="btn-brand w-full" disabled={p}>{p ? t.lookingUp : t.trackOrder}</button>
     </KeepForm>
   );
 }

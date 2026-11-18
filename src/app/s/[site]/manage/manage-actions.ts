@@ -12,7 +12,7 @@ import { getStore, priceOrder, storeModels, formatMoney, type StoreContext } fro
 import { createStoreSession, destroyStoreSession, requireStaff, type Permission } from "@/lib/store-auth";
 import { loginAs } from "@/lib/store-login";
 import { storeUrl, validateSubdomain } from "@/lib/subdomain";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { applyStarterPack, applyToggle, type ToggleResult } from "@/lib/toggles";
 import { esc, sendEmail } from "@/lib/email";
 import { addProjectDomain, domainsConfigured, removeProjectDomain } from "@/lib/vercel-domains";
@@ -76,6 +76,13 @@ export async function staffLogout(site: string) {
   if (!store) return;
   await destroyStoreSession(store);
   redirect(`${store.base}/manage/login`);
+}
+
+export async function setPanelLanguage(site: string, lang: "en" | "ur") {
+  const store = await getStore(site);
+  if (!store) return;
+  (await cookies()).set(`plang_${store.id}`, lang === "ur" ? "ur" : "en", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+  revalidatePath(`${store.base}/manage`, "layout");
 }
 
 // ---------- Onboarding (UX-01) ----------

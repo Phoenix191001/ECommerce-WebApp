@@ -23,7 +23,7 @@ export default async function Settings({ params }: { params: Promise<{ site: str
     <>
       <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
       <Card title="🎨 Branding" accent="violet">
-        <BrandingForm site={site} name={store.name} color={store.branding.primaryColor} tagline={store.branding.tagline} logoUrl={store.branding.logoUrl} canColor={!!store.features["F-15"]} />
+        <BrandingForm site={site} name={store.name} color={store.branding.primaryColor} tagline={store.branding.tagline} logoUrl={store.branding.logoUrl} canColor={!!store.features["F-15"]} uploadUrl={`${store.base}/manage/upload`} storeId={store.id} />
       </Card>
       <Card title="🏪 Store settings" accent="emerald">
         <SettingsForm site={site} s={{ currency: store.currency, ...store.settings }} f={store.features} />

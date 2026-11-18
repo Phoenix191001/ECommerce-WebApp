@@ -1,0 +1,38 @@
+name: Release checks
+
+# Runs on every push and pull request. A red check means: don't merge or release yet.
+on:
+  push:
+    branches: [main, full-platform]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Placeholders so the build can run; nothing connects to them during the build.
+      MONGODB_URI: mongodb://127.0.0.1:27017/ci
+      PLATFORM_DB_NAME: platform_ci
+      AUTH_SECRET: ci-only-secret-not-used-in-production-0123456789
+      NEXT_PUBLIC_ROOT_DOMAIN: example.com
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx eslint src --max-warnings=0
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build

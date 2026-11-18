@@ -5,6 +5,7 @@ import { totpQr } from "@/lib/totp";
 import { TwoFactorConfirm } from "@/components/store/extras";
 import { setCustomerTwoFactor } from "../../../shop-actions";
 import { AccountNav } from "../account-nav";
+import { storePrefs } from "@/lib/store-prefs";
 
 export const metadata = { title: "Security" };
 
@@ -15,13 +16,14 @@ export default async function Security({ params }: { params: Promise<{ site: str
   if (!store.features["F-22"] || !store.features["F-69"]) notFound();
   const user = await getCurrentUser(store);
   if (!user || user.role !== "customer") redirect(`${store.base}/account/login`);
+  const { t: L } = await storePrefs(store);
   const qr = user.totpSecret && !user.totpEnabled ? await totpQr(user.totpSecret, `${store.name}: ${user.email}`) : null;
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-      <h1 className="text-2xl font-bold">🔐 Security</h1>
-      <AccountNav store={store} active="security" />
+      <h1 className="text-2xl font-bold">{L.securityTitle}</h1>
+      <AccountNav store={store} active="security" L={L} />
       <section className="rounded-2xl bg-white p-5 shadow-sm">
-        <h2 className="font-semibold">Two-factor sign-in</h2>
+        <h2 className="font-semibold">{L.twoFactor}</h2>
         {user.totpEnabled ? (
           <>
             <p className="mt-1 text-sm text-emerald-700">✅ On. You&apos;ll enter a code from your authenticator app when you sign in.</p>

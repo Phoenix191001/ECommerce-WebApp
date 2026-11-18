@@ -27,6 +27,8 @@ export default async function EditProduct({ params }: { params: Promise<{ site: 
           site={site}
           categories={categories}
           features={store.features}
+          uploadUrl={`${store.base}/manage/upload`}
+          storeId={store.id}
           product={{
             id, name: p.name, price: p.price, compareAtPrice: p.compareAtPrice, stock: p.stock, category: p.category, brand: p.brand,
             sku: p.sku, barcode: p.barcode, images: p.images, description: p.description, status: p.status,

@@ -3,6 +3,8 @@ import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { totalStock } from "@/lib/pricing";
 import { Badge, Card, btnTealCls } from "@/components/admin/ui";
+import { fill } from "@/lib/i18n";
+import { panelPrefs, pText } from "@/lib/panel-i18n";
 
 export const metadata = { title: "Products" };
 
@@ -18,26 +20,27 @@ export default async function Products({ params, searchParams }: { params: Promi
   const products = await m.Product.find(filter).sort({ createdAt: -1 }).limit(200).lean();
   const b = `${store.base}/manage`;
   const f = store.features;
+  const { p: L } = await panelPrefs(store);
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-900">Products</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{L.products}</h1>
         <div className="flex gap-2">
-          {f["F-50"] && <a href={`${b}/export/products`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">⬇️ Export CSV</a>}
-          {(f["F-90"] || f["F-91"]) && <Link href={`${b}/products/bulk`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">📑 Bulk edit / import</Link>}
-          {f["F-65"] && <Link href={`${b}/questions`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">❓ Questions</Link>}
-          <Link href={`${b}/products/new`} className={btnTealCls}>➕ Add product</Link>
+          {f["F-50"] && <a href={`${b}/export/products`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{L.exportCsv}</a>}
+          {(f["F-90"] || f["F-91"]) && <Link href={`${b}/products/bulk`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{L.bulk}</Link>}
+          {f["F-65"] && <Link href={`${b}/questions`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{L.questions}</Link>}
+          <Link href={`${b}/products/new`} className={btnTealCls}>{L.addProduct}</Link>
         </div>
       </div>
-      {saved && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">✅ Product saved.</p>}
+      {saved && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{L.productSaved}</p>}
       <Card>
-        <form className="mb-4"><input name="q" defaultValue={q} placeholder="Search by name, SKU, or barcode…" className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm" /></form>
+        <form className="mb-4"><input name="q" defaultValue={q} placeholder={L.searchProducts} className="w-full max-w-sm rounded-lg border border-slate-300 px-3 py-2 text-sm" /></form>
         {products.length === 0 ? (
-          <div className="py-10 text-center"><p className="text-4xl">📦</p><p className="mt-2 text-sm text-slate-600">No products yet.</p><Link href={`${b}/products/new`} className={`${btnTealCls} mt-4`}>Add your first product</Link></div>
+          <div className="py-10 text-center"><p className="text-4xl">📦</p><p className="mt-2 text-sm text-slate-600">{L.noProducts}</p><Link href={`${b}/products/new`} className={`${btnTealCls} mt-4`}>{L.addFirst}</Link></div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase text-slate-500"><tr><th className="py-2">Product</th><th>Price</th>{f["F-17"] && <th>Stock</th>}<th>Category</th><th>Status</th></tr></thead>
+            <table className="w-full text-start text-sm">
+              <thead className="text-xs uppercase text-slate-500"><tr><th className="py-2 text-start">{L.colProduct}</th><th className="text-start">{L.colPrice}</th>{f["F-17"] && <th className="text-start">{L.colStock}</th>}<th className="text-start">{L.colCategory}</th><th className="text-start">{L.colStatus}</th></tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {products.map((p) => (
                   <tr key={String(p._id)} className="hover:bg-slate-50">
@@ -51,9 +54,9 @@ export default async function Products({ params, searchParams }: { params: Promi
                       </Link>
                     </td>
                     <td>{formatMoney(p.price, store.currency)}</td>
-                    {f["F-17"] && (() => { const st = totalStock(p); return <td className={st <= 0 ? "font-semibold text-rose-600" : st <= store.settings.lowStockAt ? "text-amber-700" : ""}>{st}{p.variants?.length ? <span className="ms-1 text-xs text-slate-400">({p.variants.length} variants)</span> : null}{p.publishAt && new Date(p.publishAt) > new Date() ? <span className="ms-1 text-xs text-sky-600">⏰ scheduled</span> : null}</td>; })()}
+                    {f["F-17"] && (() => { const st = totalStock(p); return <td className={st <= 0 ? "font-semibold text-rose-600" : st <= store.settings.lowStockAt ? "text-amber-700" : ""}>{st}{p.variants?.length ? <span className="ms-1 text-xs text-slate-400">{fill(L.variants, { n: p.variants.length })}</span> : null}{p.publishAt && new Date(p.publishAt) > new Date() ? <span className="ms-1 text-xs text-sky-600">{L.scheduled}</span> : null}</td>; })()}
                     <td className="text-slate-600">{p.category || "—"}</td>
-                    <td><Badge tone={p.status === "active" ? "green" : "slate"}>{p.status}</Badge></td>
+                    <td><Badge tone={p.status === "active" ? "green" : "slate"}>{pText(L, "ps", p.status)}</Badge></td>
                   </tr>
                 ))}
               </tbody>

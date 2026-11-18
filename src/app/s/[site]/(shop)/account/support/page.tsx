@@ -3,6 +3,7 @@ import { requireStore, storeModels } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/store-auth";
 import { TicketForm, TicketReply } from "@/components/store/extras";
 import { AccountNav } from "../account-nav";
+import { storePrefs } from "@/lib/store-prefs";
 
 export const metadata = { title: "Support" };
 
@@ -12,13 +13,14 @@ export default async function Support({ params }: { params: Promise<{ site: stri
   if (!store.features["F-22"] || !store.features["F-73"]) notFound();
   const user = await getCurrentUser(store);
   if (!user || user.role !== "customer") redirect(`${store.base}/account/login`);
+  const { t: L } = await storePrefs(store);
   const tickets = await (await storeModels(store)).Ticket.find({ user: user._id }).sort({ updatedAt: -1 }).lean();
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-      <h1 className="text-2xl font-bold">💬 Support</h1>
-      <AccountNav store={store} active="support" />
+      <h1 className="text-2xl font-bold">{L.supportTitle}</h1>
+      <AccountNav store={store} active="support" L={L} />
       <section className="rounded-2xl bg-white p-5 shadow-sm">
-        <h2 className="mb-3 font-semibold">New request</h2>
+        <h2 className="mb-3 font-semibold">{L.newRequest}</h2>
         <TicketForm site={site} />
       </section>
       {tickets.map((t) => (

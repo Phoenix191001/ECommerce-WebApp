@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requireStore } from "@/lib/tenant";
 import { can, requireStaff, type Permission } from "@/lib/store-auth";
-import { staffLogout } from "../manage-actions";
+import { setPanelLanguage, staffLogout } from "../manage-actions";
+import { fill } from "@/lib/i18n";
+import { panelPrefs } from "@/lib/panel-i18n";
 
 type Props = { children: React.ReactNode; params: Promise<{ site: string }> };
 
@@ -10,34 +12,35 @@ export default async function ManageLayout({ children, params }: Props) {
   const store = await requireStore(site);
   const user = await requireStaff(store);
   const f = store.features;
+  const { lang, p, dir } = await panelPrefs(store);
   const b = `${store.base}/manage`;
   const nav: { href: string; label: string; icon: string; perm: Permission; show?: boolean }[] = [
-    { href: b, label: "Home", icon: "🏠", perm: "reports" },
-    { href: `${b}/orders`, label: "Orders", icon: "🧾", perm: "orders" },
-    { href: `${b}/products`, label: "Products", icon: "📦", perm: "catalog", show: !!f["F-01"] },
-    { href: `${b}/customers`, label: "Customers", icon: "👥", perm: "customers" },
-    { href: `${b}/returns`, label: "Returns", icon: "↩️", perm: "orders", show: !!f["F-46"] },
-    { href: `${b}/support`, label: "Support", icon: "💬", perm: "customers", show: !!f["F-73"] },
-    { href: `${b}/discounts`, label: "Discounts", icon: "🏷️", perm: "discounts", show: !!f["F-27"] },
-    { href: `${b}/pos`, label: "POS", icon: "💵", perm: "pos", show: !!f["F-34"] },
-    { href: `${b}/staff`, label: "Staff", icon: "🧑‍🤝‍🧑", perm: "staff", show: !!f["F-48"] },
-    { href: `${b}/reports`, label: "Profit", icon: "📈", perm: "reports", show: !!f["F-82"] },
-    { href: `${b}/content`, label: "Content", icon: "📝", perm: "settings" },
-    { href: `${b}/features`, label: "Features", icon: "🧩", perm: "features" },
-    { href: `${b}/settings`, label: "Settings", icon: "⚙️", perm: "settings" },
-    { href: `${b}/activity`, label: "Activity", icon: "📜", perm: "settings", show: !!f["F-122"] },
-    { href: `${b}/developers`, label: "Developers", icon: "🧑‍💻", perm: "settings", show: !!f["F-112"] },
+    { href: b, label: p.home, icon: "🏠", perm: "reports" },
+    { href: `${b}/orders`, label: p.orders, icon: "🧾", perm: "orders" },
+    { href: `${b}/products`, label: p.products, icon: "📦", perm: "catalog", show: !!f["F-01"] },
+    { href: `${b}/customers`, label: p.customers, icon: "👥", perm: "customers" },
+    { href: `${b}/returns`, label: p.returns, icon: "↩️", perm: "orders", show: !!f["F-46"] },
+    { href: `${b}/support`, label: p.support, icon: "💬", perm: "customers", show: !!f["F-73"] },
+    { href: `${b}/discounts`, label: p.discounts, icon: "🏷️", perm: "discounts", show: !!f["F-27"] },
+    { href: `${b}/pos`, label: p.pos, icon: "💵", perm: "pos", show: !!f["F-34"] },
+    { href: `${b}/staff`, label: p.staff, icon: "🧑‍🤝‍🧑", perm: "staff", show: !!f["F-48"] },
+    { href: `${b}/reports`, label: p.profit, icon: "📈", perm: "reports", show: !!f["F-82"] },
+    { href: `${b}/content`, label: p.content, icon: "📝", perm: "settings" },
+    { href: `${b}/features`, label: p.features, icon: "🧩", perm: "features" },
+    { href: `${b}/settings`, label: p.settings, icon: "⚙️", perm: "settings" },
+    { href: `${b}/activity`, label: p.activity, icon: "📜", perm: "settings", show: !!f["F-122"] },
+    { href: `${b}/developers`, label: p.developers, icon: "🧑‍💻", perm: "settings", show: !!f["F-112"] },
   ];
   const items = nav.filter((n) => n.show !== false && can(user.role, n.perm));
 
   return (
-    <div className="min-h-screen bg-slate-50 md:flex">
+    <div dir={dir} lang={lang} className="min-h-screen bg-slate-50 md:flex">
       <aside className="print:hidden bg-gradient-to-b from-emerald-950 via-teal-900 to-cyan-900 text-emerald-50 md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0">
         <div className="flex items-center gap-2 px-5 py-5">
           <span className="bg-brand-gradient flex h-9 w-9 items-center justify-center rounded-xl text-base font-bold text-white shadow-lg">{store.name[0]}</span>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-white">{store.name}</p>
-            <p className="text-[11px] capitalize text-emerald-300">{user.role} · {store.planName} plan</p>
+            <p className="text-[11px] capitalize text-emerald-300">{(p as Record<string, string>)[`role_${user.role}`] ?? user.role} · {fill(p.plan, { plan: store.planName })}</p>
           </div>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col">
@@ -47,25 +50,28 @@ export default async function ManageLayout({ children, params }: Props) {
             </Link>
           ))}
           <a href={store.base || "/"} target="_blank" className="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-emerald-200 hover:bg-white/10">
-            <span aria-hidden>🛒</span>View store ↗
+            <span aria-hidden>🛒</span>{p.viewStore}
           </a>
           <Link href="/guide" target="_blank" className="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-emerald-200 hover:bg-white/10">
-            <span aria-hidden>📘</span>Help & guide ↗
+            <span aria-hidden>📘</span>{p.help}
           </Link>
         </nav>
       </aside>
       <div className="min-w-0 flex-1">
         {user.imp && (
           <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-2 text-center text-sm font-medium text-white">
-            👀 You're signed in as the store owner from the platform admin ({user.imp}). Everything you do here is recorded.
+            {fill(p.impersonating, { who: user.imp })}
           </div>
         )}
         {store.status === "suspended" && (
-          <div className="bg-amber-500 px-6 py-2 text-center text-sm font-medium text-white">⏸️ This store is suspended by the platform. Customers see a maintenance page.</div>
+          <div className="bg-amber-500 px-6 py-2 text-center text-sm font-medium text-white">{p.suspended}</div>
         )}
         <header className="print:hidden flex items-center justify-between gap-3 border-b border-slate-200 bg-white/80 px-6 py-3 text-sm text-slate-600 backdrop-blur">
-          <span className="font-medium text-slate-500">Hi, {user.name.split(" ")[0]} 👋</span>
-          <form action={staffLogout.bind(null, site)}><button className="rounded-lg px-2 py-1 hover:bg-slate-100">Sign out</button></form>
+          <span className="font-medium text-slate-500">{fill(p.hi, { name: user.name.split(" ")[0] })}</span>
+          <div className="flex items-center gap-1">
+            <form action={setPanelLanguage.bind(null, site, lang === "ur" ? "en" : "ur")}><button className="rounded-lg px-2 py-1 font-medium text-emerald-700 hover:bg-emerald-50" aria-label={lang === "ur" ? "Switch to English" : "اردو میں دیکھیں"}>🌐 {p.switchLang}</button></form>
+            <form action={staffLogout.bind(null, site)}><button className="rounded-lg px-2 py-1 hover:bg-slate-100">{p.signOut}</button></form>
+          </div>
         </header>
         <main className="mx-auto max-w-6xl space-y-6 p-6">{children}</main>
       </div>

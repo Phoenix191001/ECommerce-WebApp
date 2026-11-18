@@ -13,7 +13,7 @@ export default async function NewProduct({ params }: { params: Promise<{ site: s
   return (
     <>
       <h1 className="text-2xl font-bold text-slate-900">Add product</h1>
-      <Card accent="emerald"><ProductEditor site={site} categories={categories} features={store.features} /></Card>
+      <Card accent="emerald"><ProductEditor site={site} categories={categories} features={store.features} uploadUrl={`${store.base}/manage/upload`} storeId={store.id} /></Card>
     </>
   );
 }

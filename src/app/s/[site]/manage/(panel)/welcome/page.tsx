@@ -53,7 +53,7 @@ export default async function Wizard({ params, searchParams }: { params: Promise
       {current === "brand" && (
         <Card title="🎨 Make it yours" accent="emerald">
           <p className="mb-4 text-sm text-slate-600">Your store name and color appear on every page. Pick a color and watch the preview change.</p>
-          <BrandingForm site={site} name={store.name} color={store.branding.primaryColor} tagline={store.branding.tagline} logoUrl={store.branding.logoUrl} canColor={!!store.features["F-15"]} />
+          <BrandingForm site={site} name={store.name} color={store.branding.primaryColor} tagline={store.branding.tagline} logoUrl={store.branding.logoUrl} canColor={!!store.features["F-15"]} uploadUrl={`${store.base}/manage/upload`} storeId={store.id} />
         </Card>
       )}
       {current === "product" && (
@@ -63,7 +63,7 @@ export default async function Wizard({ params, searchParams }: { params: Promise
           ) : (
             <>
               <p className="mb-4 text-sm text-slate-600">Just a name and a price are enough to start. You can add photos with image links and fill in the rest later.</p>
-              <ProductEditor site={site} categories={categories} features={store.features} />
+              <ProductEditor site={site} categories={categories} features={store.features} uploadUrl={`${store.base}/manage/upload`} storeId={store.id} />
             </>
           )}
         </Card>

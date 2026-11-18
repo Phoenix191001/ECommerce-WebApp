@@ -4,6 +4,8 @@ import { requireStore, storeModels } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/store-auth";
 import { ReturnForm } from "@/components/store/extras";
 import { AccountNav } from "../account-nav";
+import { storePrefs } from "@/lib/store-prefs";
+import { fill } from "@/lib/i18n";
 
 export const metadata = { title: "Returns" };
 
@@ -15,6 +17,7 @@ export default async function Returns({ params, searchParams }: { params: Promis
   if (!f["F-22"] || !f["F-46"]) notFound();
   const user = await getCurrentUser(store);
   if (!user || user.role !== "customer") redirect(`${store.base}/account/login`);
+  const { t: L } = await storePrefs(store);
   const m = await storeModels(store);
   const [mine, delivered] = await Promise.all([
     m.Return.find({ user: user._id }).sort({ createdAt: -1 }).lean(),
@@ -23,11 +26,11 @@ export default async function Returns({ params, searchParams }: { params: Promis
   const chosen = delivered.find((o) => String(o.number) === order);
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-      <h1 className="text-2xl font-bold">↩️ Returns and exchanges</h1>
-      <AccountNav store={store} active="returns" />
+      <h1 className="text-2xl font-bold">{L.returnsTitle}</h1>
+      <AccountNav store={store} active="returns" L={L} />
       <section className="rounded-2xl bg-white p-5 shadow-sm">
-        <h2 className="mb-3 font-semibold">Start a return</h2>
-        {delivered.length === 0 ? <p className="text-sm text-slate-500">You can return items from delivered orders.</p> : (
+        <h2 className="mb-3 font-semibold">{L.startReturn}</h2>
+        {delivered.length === 0 ? <p className="text-sm text-slate-500">{L.returnDelivered}</p> : (
           <>
             <div className="mb-4 flex flex-wrap gap-2">
               {delivered.map((o) => (
@@ -36,17 +39,17 @@ export default async function Returns({ params, searchParams }: { params: Promis
             </div>
             {chosen ? (
               <ReturnForm site={site} order={chosen.number} items={chosen.items.map((i) => ({ name: i.variantName ? `${i.name} (${i.variantName})` : i.name, qty: i.qty }))} allowExchange={!!f["F-100"]} allowCredit={!!f["F-56"]} />
-            ) : <p className="text-sm text-slate-500">Choose an order above.</p>}
+            ) : <p className="text-sm text-slate-500">{L.chooseOrder}</p>}
           </>
         )}
       </section>
       {mine.length > 0 && (
         <section className="rounded-2xl bg-white p-5 shadow-sm">
-          <h2 className="mb-3 font-semibold">My requests</h2>
+          <h2 className="mb-3 font-semibold">{L.myRequests}</h2>
           <ul className="divide-y divide-slate-100 text-sm">
             {mine.map((r) => (
               <li key={String(r._id)} className="py-2">
-                <b>Order #{r.orderNumber}</b> · {r.type} · <span className="bg-brand-soft rounded-full px-2 py-0.5 text-xs font-medium capitalize">{r.status}</span>
+                <b>{fill(L.orderNo, { n: r.orderNumber })}</b> · {r.type} · <span className="bg-brand-soft rounded-full px-2 py-0.5 text-xs font-medium capitalize">{r.status}</span>
                 <p className="text-slate-600">{r.items.map((i) => `${i.name} × ${i.qty}`).join(", ")}</p>
                 {r.note && <p className="text-xs text-slate-500">Store note: {r.note}</p>}
               </li>
