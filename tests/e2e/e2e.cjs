@@ -180,11 +180,11 @@ async function step(name, fn) {
     await step("add products", async () => {
       for (const [name, price, stock, barcode, cat] of [["Wireless Earbuds", 3500, 20, "111222", "Audio"], ["Phone Charger", 1200, 3, "333444", "Power"]]) {
         await op.goto(`${S}/manage/products/new`);
-        await op.getByLabel("Product name").fill(name);
-        await op.getByLabel("Price", { exact: true }).fill(String(price));
-        await op.getByLabel("Stock").fill(String(stock));
-        await op.getByLabel("Category").fill(cat);
-        await op.getByLabel("Barcode").fill(barcode);
+        await op.locator("input[name=name]").fill(name);
+        await op.locator("input[name=price]").fill(String(price));
+        await op.locator("input[name=stock]").fill(String(stock));
+        await op.locator("input[name=category]").fill(cat);
+        await op.locator("input[name=barcode]").fill(barcode);
         await op.getByRole("button", { name: "Add product" }).click();
         await op.getByText("Product saved.").first().waitFor();
       }

@@ -15,9 +15,10 @@ export default async function Bulk({ params, searchParams }: { params: Promise<{
   const f = store.features;
   const m = await storeModels(store);
   const products = await m.Product.find(q ? { name: { $regex: esc(q), $options: "i" } } : {}).sort({ name: 1 }).limit(300).lean();
-  const rows = products.flatMap((p) =>
+  type Row = { id: string; vid?: string; name: string; price?: number; inherited?: number; stock: number };
+  const rows = products.flatMap((p): Row[] =>
     f["F-02"] && p.variants?.length
-      ? p.variants.map((v) => ({ id: String(p._id), vid: String(v._id), name: `${p.name} — ${v.name}`, price: v.price ?? p.price, stock: v.stock }))
+      ? p.variants.map((v) => ({ id: String(p._id), vid: String(v._id), name: `${p.name} — ${v.name}`, price: v.price ?? undefined, inherited: v.price == null ? p.price : undefined, stock: v.stock }))
       : [{ id: String(p._id), name: p.name, price: p.price, stock: p.stock }],
   );
   return (

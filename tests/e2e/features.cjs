@@ -103,9 +103,10 @@ const see = (p, t) => p.getByText(t).first().waitFor();
 
     await step("product with variants, sale, volume tiers, tags, warranty, size guide", async () => {
       await op.goto(`${S}/manage/products/new`);
-      await op.getByLabel("Product name").fill("Cotton Kurta");
-      await op.getByLabel("Price", { exact: true }).fill("2000");
-      await op.getByLabel("Category").fill("Clothing");
+      await op.locator("input[name=name]").fill("Cotton Kurta");
+      await op.locator("input[name=price]").fill("2000");
+      await op.locator("input[name=category]").fill("Clothing");
+      for (const t of ["Variants (sizes, colors)", "Pricing rules", "More details"]) await op.locator("summary", { hasText: t }).click();
       await op.locator("input[name=optionNames]").fill("Size");
       await op.locator("textarea[name=variants]").fill("Small | | 5 | KUR-S | 5551\nXL | 2400 | 0 | KUR-XL | 5552");
       await op.locator("input[name=salePrice]").fill("1700");
@@ -142,7 +143,8 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       await op.locator("input[name=slug]").fill("about-us");
       await op.locator("textarea[name=body]").fill("# Our story\n\nWe make cotton clothes.\n\n- Handmade\n- Local");
       await op.getByRole("button", { name: "Save" }).first().click();
-      await see(op, "Pages and blog posts");
+      await op.getByRole("link", { name: "About us" }).first().waitFor(); // saved and back on the list
+      await op.waitForLoadState("networkidle");
       await op.locator("textarea[name=menu]").fill("About us | /pages/about-us");
       await op.locator("textarea[name=locations]").fill("Main shop | 12 Mall Road, Lahore | 042-111 | 10am-9pm");
       await op.getByRole("button", { name: "Save storefront settings" }).click();

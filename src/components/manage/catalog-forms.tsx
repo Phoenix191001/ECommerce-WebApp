@@ -20,7 +20,7 @@ export function CsvImportForm({ site }: { site: string }) {
   );
 }
 
-type Row = { id: string; vid?: string; name: string; price: number; stock: number };
+type Row = { id: string; vid?: string; name: string; price?: number; inherited?: number; stock: number };
 
 export function BulkEditForm({ site, rows, ids, currency }: { site: string; rows: Row[]; ids: string; currency: string }) {
   const [s, a, p] = useActionState<MState, FormData>(bulkUpdate.bind(null, site), undefined);
@@ -41,7 +41,7 @@ export function BulkEditForm({ site, rows, ids, currency }: { site: string; rows
               return (
                 <tr key={k}>
                   <td className="py-1.5">{r.name}</td>
-                  <td><input name={`price_${k}`} type="number" min="0" defaultValue={r.price} className={`${tealInput} !w-28 !py-1`} aria-label={`Price of ${r.name}`} /></td>
+                  <td><input name={`price_${k}`} type="number" min="0" defaultValue={r.price} placeholder={r.inherited !== undefined ? `${r.inherited} (product)` : undefined} className={`${tealInput} !w-32 !py-1`} aria-label={`Price of ${r.name}`} /></td>
                   <td><input name={`stock_${k}`} type="number" min="0" step="1" defaultValue={r.stock} className={`${tealInput} !w-24 !py-1`} aria-label={`Stock of ${r.name}`} /></td>
                 </tr>
               );
