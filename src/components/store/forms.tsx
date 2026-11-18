@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepForm } from "@/components/keep-form";
 import { useActionState, useState } from "react";
 import { addReview, applyCode, customerLogin, placeOrder, register, trackOrder, type ShopState } from "@/app/s/[site]/shop-actions";
 
@@ -19,13 +20,13 @@ function L({ label, children }: { label: string; children: React.ReactNode }) {
 export function CodeForm({ site, current }: { site: string; current?: string }) {
   const [s, a, p] = useActionState<ShopState, FormData>(applyCode.bind(null, site), undefined);
   return (
-    <form action={a} className="space-y-2">
+    <KeepForm action={a} className="space-y-2">
       <div className="flex gap-2">
         <input name="code" defaultValue={current} placeholder="Discount code" className={`${field} uppercase`} aria-label="Discount code" />
         <button className="rounded-xl border border-slate-300 px-4 text-sm font-medium hover:bg-slate-50" disabled={p}>{current ? "Update" : "Apply"}</button>
       </div>
       <Msg s={s} />
-    </form>
+    </KeepForm>
   );
 }
 
@@ -43,7 +44,7 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
   const [delivery, setDelivery] = useState<"shipping" | "pickup">("shipping");
   const first = methods.find((m) => m.available)?.id;
   return (
-    <form action={a} className="space-y-6">
+    <KeepForm action={a} className="space-y-6">
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">1</span> Contact</h2>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -89,44 +90,44 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
       </section>
       <Msg s={s} />
       <button className="btn-brand w-full !py-3 text-base" disabled={p || !first}>{p ? "Placing order…" : `Place order · ${totalLabel}`}</button>
-    </form>
+    </KeepForm>
   );
 }
 
 export function LoginForm({ site }: { site: string }) {
   const [s, a, p] = useActionState<ShopState, FormData>(customerLogin.bind(null, site), undefined);
   return (
-    <form action={a} className="space-y-3">
+    <KeepForm action={a} className="space-y-3">
       <L label="Email"><input name="email" type="email" required autoComplete="email" className={field} /></L>
       <L label="Password"><input name="password" type="password" required autoComplete="current-password" className={field} /></L>
       <Msg s={s} />
       <button className="btn-brand w-full" disabled={p}>{p ? "Signing in…" : "Sign in"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
 export function RegisterForm({ site }: { site: string }) {
   const [s, a, p] = useActionState<ShopState, FormData>(register.bind(null, site), undefined);
   return (
-    <form action={a} className="space-y-3">
+    <KeepForm action={a} className="space-y-3">
       <L label="Name"><input name="name" required autoComplete="name" className={field} /></L>
       <L label="Email"><input name="email" type="email" required autoComplete="email" className={field} /></L>
       <L label="Password"><input name="password" type="password" required minLength={8} autoComplete="new-password" className={field} /></L>
       <Msg s={s} />
       <button className="btn-brand w-full" disabled={p}>{p ? "Creating…" : "Create account"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
 export function TrackForm({ site }: { site: string }) {
   const [s, a, p] = useActionState<ShopState, FormData>(trackOrder.bind(null, site), undefined);
   return (
-    <form action={a} className="space-y-3">
+    <KeepForm action={a} className="space-y-3">
       <L label="Order number"><input name="number" required inputMode="numeric" placeholder="1001" className={field} /></L>
       <L label="Email used for the order"><input name="email" type="email" required className={field} /></L>
       <Msg s={s} />
       <button className="btn-brand w-full" disabled={p}>{p ? "Looking up…" : "Track order"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
@@ -134,7 +135,7 @@ export function ReviewForm({ site, product }: { site: string; product: string })
   const [s, a, p] = useActionState<ShopState, FormData>(addReview.bind(null, site, product), undefined);
   const [rating, setRating] = useState(5);
   return (
-    <form action={a} className="space-y-3">
+    <KeepForm action={a} className="space-y-3">
       <input type="hidden" name="rating" value={rating} />
       <div className="flex gap-1" role="radiogroup" aria-label="Rating">
         {[1, 2, 3, 4, 5].map((n) => (
@@ -144,7 +145,7 @@ export function ReviewForm({ site, product }: { site: string; product: string })
       <textarea name="text" rows={3} placeholder="What did you think?" className={field} />
       <Msg s={s} />
       <button className="btn-brand" disabled={p}>{p ? "Posting…" : "Post review"}</button>
-    </form>
+    </KeepForm>
   );
 }
 

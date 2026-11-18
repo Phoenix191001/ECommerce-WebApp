@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepForm } from "@/components/keep-form";
 import { useActionState, useState } from "react";
 import {
   addProduct, createInstance, createOwnerLink, deleteInstance, login, savePlan, setupAdmin, verifyTwoFactor,
@@ -10,7 +11,7 @@ import { Field, FormMessage, btnCls, btnDangerCls, btnSecondaryCls, inputCls } f
 export function AuthForm({ mode }: { mode: "setup" | "login" }) {
   const [state, action, pending] = useActionState<FormState, FormData>(mode === "setup" ? setupAdmin : login, undefined);
   return (
-    <form action={action} className="space-y-4">
+    <KeepForm action={action} className="space-y-4">
       <Field label="Email">
         <input name="email" type="email" required autoComplete="email" className={inputCls} />
       </Field>
@@ -28,14 +29,14 @@ export function AuthForm({ mode }: { mode: "setup" | "login" }) {
       <button className={`${btnCls} w-full`} disabled={pending}>
         {pending ? "Please wait…" : mode === "setup" ? "Create Super Admin" : "Continue"}
       </button>
-    </form>
+    </KeepForm>
   );
 }
 
 export function TwoFactorForm() {
   const [state, action, pending] = useActionState<FormState, FormData>(verifyTwoFactor, undefined);
   return (
-    <form action={action} className="space-y-4">
+    <KeepForm action={action} className="space-y-4">
       <Field label="6-digit code">
         <input
           name="code"
@@ -50,7 +51,7 @@ export function TwoFactorForm() {
       </Field>
       <FormMessage state={state} />
       <button className={`${btnCls} w-full`} disabled={pending}>{pending ? "Checking…" : "Verify and sign in"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
@@ -58,7 +59,7 @@ export function InstanceForm({ plans, rootDomain }: { plans: { id: string; name:
   const [state, action, pending] = useActionState<FormState, FormData>(createInstance, undefined);
   const [sub, setSub] = useState("");
   return (
-    <form action={action} className="space-y-5">
+    <KeepForm action={action} className="space-y-5">
       <Field label="Store name">
         <input name="name" required className={inputCls} placeholder="Ali's Electronics" />
       </Field>
@@ -97,20 +98,20 @@ export function InstanceForm({ plans, rootDomain }: { plans: { id: string; name:
       </p>
       <FormMessage state={state} />
       <button className={btnCls} disabled={pending}>{pending ? "Creating…" : "Create instance"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
 export function ProductForm({ instanceId }: { instanceId: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(addProduct.bind(null, instanceId), undefined);
   return (
-    <form action={action} className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
+    <KeepForm action={action} className="grid gap-3 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
       <Field label="Name"><input name="name" required className={inputCls} /></Field>
       <Field label="Price"><input name="price" type="number" min="0" step="1" required className={inputCls} /></Field>
       <Field label="Stock"><input name="stock" type="number" min="0" step="1" defaultValue="0" className={inputCls} /></Field>
       <button className={btnCls} disabled={pending}>{pending ? "Adding…" : "Add"}</button>
       <div className="sm:col-span-4"><FormMessage state={state} /></div>
-    </form>
+    </KeepForm>
   );
 }
 
@@ -119,7 +120,7 @@ export function OwnerLinkForm({ instanceId }: { instanceId: string }) {
   const [copied, setCopied] = useState(false);
   const full = state?.link && typeof window !== "undefined" ? `${window.location.origin}${state.link}` : "";
   return (
-    <form action={action} className="space-y-3">
+    <KeepForm action={action} className="space-y-3">
       <button className={btnSecondaryCls} disabled={pending}>🔑 {pending ? "Creating…" : "Create owner setup link"}</button>
       <FormMessage state={state} />
       {full && (
@@ -134,20 +135,20 @@ export function OwnerLinkForm({ instanceId }: { instanceId: string }) {
           </button>
         </div>
       )}
-    </form>
+    </KeepForm>
   );
 }
 
 export function DeleteForm({ instanceId, subdomain }: { instanceId: string; subdomain: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(deleteInstance.bind(null, instanceId), undefined);
   return (
-    <form action={action} className="space-y-3">
+    <KeepForm action={action} className="space-y-3">
       <Field label={`Type "${subdomain}" to confirm`}>
         <input name="confirm" autoComplete="off" className={inputCls} />
       </Field>
       <FormMessage state={state} />
       <button className={btnDangerCls} disabled={pending}>{pending ? "Deleting…" : "Delete store permanently"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
@@ -165,7 +166,7 @@ export function PlanForm({
   const flip = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const setGroup = (ids: string[], on: boolean) => setSel((s) => { const n = new Set(s); ids.forEach((i) => (on ? n.add(i) : n.delete(i))); return n; });
   return (
-    <form action={action} className="space-y-4">
+    <KeepForm action={action} className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Name"><input name="name" required defaultValue={plan?.name} className={inputCls} /></Field>
         <Field label="Price per month (PKR)"><input name="priceMonthly" type="number" min="0" defaultValue={plan?.priceMonthly ?? 0} className={inputCls} /></Field>
@@ -200,6 +201,6 @@ export function PlanForm({
       </details>
       <FormMessage state={state} />
       <button className={btnCls} disabled={pending}>{pending ? "Saving…" : plan ? "Save plan" : "Create plan"}</button>
-    </form>
+    </KeepForm>
   );
 }

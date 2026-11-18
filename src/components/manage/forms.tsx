@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepForm } from "@/components/keep-form";
 import { useActionState, useState } from "react";
 import {
   addStaff, ownerSetup, refundOrder, saveBranding, saveDiscount, saveProduct, saveSettings, setCustomDomain, staffLogin,
@@ -12,24 +13,24 @@ const tealInput = inputCls.replaceAll("indigo", "emerald");
 export function StaffLoginForm({ site }: { site: string }) {
   const [s, a, p] = useActionState<MState, FormData>(staffLogin.bind(null, site), undefined);
   return (
-    <form action={a} className="space-y-4">
+    <KeepForm action={a} className="space-y-4">
       <Field label="Email"><input name="email" type="email" required autoComplete="email" className={tealInput} /></Field>
       <Field label="Password"><input name="password" type="password" required autoComplete="current-password" className={tealInput} /></Field>
       <FormMessage state={s} />
       <button className={`${btnTealCls} w-full`} disabled={p}>{p ? "Signing in…" : "Sign in"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
 export function OwnerSetupForm({ site, token }: { site: string; token: string }) {
   const [s, a, p] = useActionState<MState, FormData>(ownerSetup.bind(null, site, token), undefined);
   return (
-    <form action={a} className="space-y-4">
+    <KeepForm action={a} className="space-y-4">
       <Field label="New password" hint="At least 10 characters."><input name="password" type="password" minLength={10} required autoComplete="new-password" className={tealInput} /></Field>
       <Field label="Type it again"><input name="confirm" type="password" required autoComplete="new-password" className={tealInput} /></Field>
       <FormMessage state={s} />
       <button className={`${btnTealCls} w-full`} disabled={p}>{p ? "Saving…" : "Set password and continue"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
@@ -41,7 +42,7 @@ type P = {
 export function ProductEditor({ site, product, categories }: { site: string; product?: P; categories: string[] }) {
   const [s, a, p] = useActionState<MState, FormData>(saveProduct.bind(null, site, product?.id ?? null), undefined);
   return (
-    <form action={a} className="space-y-4">
+    <KeepForm action={a} className="space-y-4">
       <Field label="Product name"><input name="name" required defaultValue={product?.name} className={tealInput} /></Field>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Price"><input name="price" type="number" min="0" required defaultValue={product?.price} className={tealInput} /></Field>
@@ -69,28 +70,28 @@ export function ProductEditor({ site, product, categories }: { site: string; pro
       </Field>
       <FormMessage state={s} />
       <button className={btnTealCls} disabled={p}>{p ? "Saving…" : product?.id ? "Save changes" : "Add product"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
 export function RefundForm({ site, number, max }: { site: string; number: number; max: number }) {
   const [s, a, p] = useActionState<MState, FormData>(refundOrder.bind(null, site, number), undefined);
   return (
-    <form action={a} className="space-y-3">
+    <KeepForm action={a} className="space-y-3">
       <div className="grid grid-cols-[1fr_2fr] gap-2">
         <input name="amount" type="number" min="1" max={max} defaultValue={max} className={tealInput} aria-label="Refund amount" />
         <input name="reason" placeholder="Reason" className={tealInput} aria-label="Refund reason" />
       </div>
       <FormMessage state={s} />
       <button className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500" disabled={p}>{p ? "Refunding…" : "Refund"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
 export function DiscountForm({ site }: { site: string }) {
   const [s, a, p] = useActionState<MState, FormData>(saveDiscount.bind(null, site), undefined);
   return (
-    <form action={a} className="grid gap-3 sm:grid-cols-3">
+    <KeepForm action={a} className="grid gap-3 sm:grid-cols-3">
       <Field label="Code"><input name="code" required className={`${tealInput} uppercase`} placeholder="EID20" /></Field>
       <Field label="Type">
         <select name="type" className={tealInput}><option value="percent">% off</option><option value="fixed">Amount off</option></select>
@@ -103,7 +104,7 @@ export function DiscountForm({ site }: { site: string }) {
         <FormMessage state={s} />
         <button className={btnTealCls} disabled={p}>{p ? "Creating…" : "Create code"}</button>
       </div>
-    </form>
+    </KeepForm>
   );
 }
 
@@ -111,7 +112,7 @@ export function StaffForm({ site, canAddManager }: { site: string; canAddManager
   const [s, a, p] = useActionState<MState, FormData>(addStaff.bind(null, site), undefined);
   const [role, setRole] = useState(canAddManager ? "manager" : "cashier");
   return (
-    <form action={a} className="grid gap-3 sm:grid-cols-2">
+    <KeepForm action={a} className="grid gap-3 sm:grid-cols-2">
       <Field label="Name"><input name="name" required className={tealInput} /></Field>
       <Field label="Email"><input name="email" type="email" required className={tealInput} /></Field>
       <Field label="Temporary password"><input name="password" type="text" minLength={8} required className={tealInput} /></Field>
@@ -127,7 +128,7 @@ export function StaffForm({ site, canAddManager }: { site: string; canAddManager
         <FormMessage state={s} />
         <button className={btnTealCls} disabled={p}>{p ? "Adding…" : "Add staff member"}</button>
       </div>
-    </form>
+    </KeepForm>
   );
 }
 
@@ -137,7 +138,7 @@ export function BrandingForm({ site, name, color, tagline, logoUrl, canColor }: 
   const [n, setN] = useState(name);
   const swatches = ["#4f46e5", "#7c3aed", "#db2777", "#e11d48", "#ea580c", "#d97706", "#16a34a", "#0d9488", "#0284c7", "#0f172a"];
   return (
-    <form action={a} className="grid gap-5 md:grid-cols-[1fr_260px]">
+    <KeepForm action={a} className="grid gap-5 md:grid-cols-[1fr_260px]">
       <div className="space-y-4">
         <Field label="Store name"><input name="name" value={n} onChange={(e) => setN(e.target.value)} required className={tealInput} /></Field>
         <Field label="Tagline" hint="One line under the store name."><input name="tagline" defaultValue={tagline} className={tealInput} placeholder="Quality gadgets, delivered fast" /></Field>
@@ -168,7 +169,7 @@ export function BrandingForm({ site, name, color, tagline, logoUrl, canColor }: 
           <div className="rounded-lg py-1.5 text-center text-xs font-semibold text-white" style={{ background: c }}>Add to cart</div>
         </div>
       </div>
-    </form>
+    </KeepForm>
   );
 }
 
@@ -178,7 +179,7 @@ export function SettingsForm({ site, s: v, f }: { site: string; s: S; f: Record<
   const [s, a, p] = useActionState<MState, FormData>(saveSettings.bind(null, site), undefined);
   const off = (id: string) => (f[id] ? undefined : <span className="text-amber-700">Turn on {id} to use this.</span>);
   return (
-    <form action={a} className="space-y-5">
+    <KeepForm action={a} className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Currency">
           <select name="currency" defaultValue={v.currency} className={tealInput}>{["PKR", "USD", "AED", "GBP", "EUR", "SAR"].map((c) => <option key={c}>{c}</option>)}</select>
@@ -200,19 +201,19 @@ export function SettingsForm({ site, s: v, f }: { site: string; s: S; f: Record<
       </div>
       <FormMessage state={s} />
       <button className={btnTealCls} disabled={p}>{p ? "Saving…" : "Save settings"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
 export function DomainForm({ site, current }: { site: string; current?: string }) {
   const [s, a, p] = useActionState<MState, FormData>(setCustomDomain.bind(null, site), undefined);
   return (
-    <form action={a} className="space-y-3">
+    <KeepForm action={a} className="space-y-3">
       <div className="flex gap-2">
         <input name="domain" defaultValue={current} placeholder="shop.example.com" className={tealInput} aria-label="Custom domain" />
         <button className={btnTealCls} disabled={p}>{p ? "Adding…" : current ? "Change" : "Add domain"}</button>
       </div>
       <FormMessage state={s} />
-    </form>
+    </KeepForm>
   );
 }

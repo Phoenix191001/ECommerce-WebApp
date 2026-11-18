@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepForm } from "@/components/keep-form";
 import { useActionState, useState } from "react";
 import { startStore, type StartState } from "@/app/start/actions";
 import { Field, FormMessage, btnCls, inputCls } from "@/components/admin/ui";
@@ -8,7 +9,7 @@ export function StartForm({ plans, rootDomain }: { plans: { id: string; name: st
   const [s, a, p] = useActionState<StartState, FormData>(startStore, undefined);
   const [sub, setSub] = useState("");
   return (
-    <form action={a} className="space-y-5">
+    <KeepForm action={a} className="space-y-5">
       <fieldset>
         <legend className="mb-2 text-sm font-semibold text-slate-800">1. Pick a plan</legend>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -41,6 +42,6 @@ export function StartForm({ plans, rootDomain }: { plans: { id: string; name: st
       <FormMessage state={s} />
       <button className={`${btnCls} w-full !py-3 text-base`} disabled={p}>{p ? "Creating your store…" : "🚀 Create my store"}</button>
       <p className="text-center text-xs text-slate-500">Your store is ready in seconds, with a setup wizard to add your first product.</p>
-    </form>
+    </KeepForm>
   );
 }

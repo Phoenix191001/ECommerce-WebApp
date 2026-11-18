@@ -1,5 +1,6 @@
 "use client";
 
+import { KeepForm } from "@/components/keep-form";
 import { useActionState, useMemo, useRef, useState, useTransition } from "react";
 import { closeShift, openShift, posRefund, posSale, type PosResult } from "@/app/s/[site]/manage/pos-actions";
 
@@ -125,7 +126,7 @@ function RefundBox({ site }: { site: string }) {
   return (
     <details className="rounded-2xl bg-white p-4 shadow-sm">
       <summary className="cursor-pointer font-semibold">↩️ Refund</summary>
-      <form action={a} className="mt-3 space-y-2 text-sm">
+      <KeepForm action={a} className="mt-3 space-y-2 text-sm">
         <div className="grid grid-cols-2 gap-2">
           <input name="number" placeholder="Order #" inputMode="numeric" required className="rounded-lg border border-slate-300 px-3 py-2" />
           <input name="amount" placeholder="Amount" inputMode="numeric" required className="rounded-lg border border-slate-300 px-3 py-2" />
@@ -134,7 +135,7 @@ function RefundBox({ site }: { site: string }) {
         {s?.error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-rose-700">{s.error}</p>}
         {s?.ok && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-700">{s.ok}</p>}
         <button className="rounded-lg bg-rose-600 px-4 py-2 font-semibold text-white" disabled={p}>{p ? "Refunding…" : "Refund cash"}</button>
-      </form>
+      </KeepForm>
     </details>
   );
 }
@@ -142,13 +143,13 @@ function RefundBox({ site }: { site: string }) {
 export function OpenShiftForm({ site }: { site: string }) {
   const [s, a, p] = useActionState<PosResult | undefined, FormData>(openShift.bind(null, site), undefined);
   return (
-    <form action={a} className="space-y-3">
+    <KeepForm action={a} className="space-y-3">
       <label className="block text-sm font-medium">Opening cash in the drawer
         <input name="openingCash" inputMode="numeric" required autoFocus className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-lg" />
       </label>
       {s?.error && <p className="text-sm text-rose-600">{s.error}</p>}
       <button className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 font-bold text-white" disabled={p}>{p ? "Opening…" : "Open shift"}</button>
-    </form>
+    </KeepForm>
   );
 }
 
@@ -170,10 +171,10 @@ export function CloseShiftForm({ site, currency }: { site: string; currency: str
     );
   }
   return (
-    <form action={a} className="flex flex-wrap items-end gap-2 text-sm">
+    <KeepForm action={a} className="flex flex-wrap items-end gap-2 text-sm">
       <label className="font-medium">Counted cash<input name="countedCash" inputMode="numeric" required className="ml-2 w-28 rounded-lg border border-slate-300 px-2 py-1.5" /></label>
       <button className="rounded-lg bg-slate-800 px-3 py-1.5 font-semibold text-white" disabled={p}>Close shift</button>
       {s?.error && <p className="w-full text-rose-600">{s.error}</p>}
-    </form>
+    </KeepForm>
   );
 }
