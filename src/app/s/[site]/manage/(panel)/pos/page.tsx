@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { Card } from "@/components/admin/ui";
 import { CloseShiftForm, OpenShiftForm, PosScreen } from "@/components/manage/pos";
@@ -8,7 +8,7 @@ export const metadata = { title: "Point of sale" };
 
 export default async function PosPage({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   if (!store.features["F-34"]) notFound();
   const user = await requireStaff(store, "pos");
   const m = await storeModels(store);

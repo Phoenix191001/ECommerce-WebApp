@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { Badge, Card, btnTealCls } from "@/components/admin/ui";
 
@@ -10,7 +10,7 @@ const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export default async function Products({ params, searchParams }: { params: Promise<{ site: string }>; searchParams: Promise<{ q?: string; saved?: string }> }) {
   const { site } = await params;
   const { q, saved } = await searchParams;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   await requireStaff(store, "catalog");
   const m = await storeModels(store);
   const filter = q ? { $or: [{ name: { $regex: esc(q), $options: "i" } }, { sku: q }, { barcode: q }] } : {};

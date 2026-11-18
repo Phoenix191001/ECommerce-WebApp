@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getStore } from "@/lib/tenant";
+import { requireStore } from "@/lib/tenant";
 import { getStoreSession } from "@/lib/store-auth";
 import { LoginForm } from "@/components/store/forms";
 
@@ -8,7 +8,7 @@ export const metadata = { title: "Sign in" };
 
 export default async function LoginPage({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   if (!store.features["F-22"]) notFound();
   if ((await getStoreSession(store))?.role === "customer") redirect(`${store.base}/account`);
   return (

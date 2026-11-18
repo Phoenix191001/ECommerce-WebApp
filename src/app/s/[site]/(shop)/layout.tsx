@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { getStore } from "@/lib/tenant";
+import { requireStore } from "@/lib/tenant";
 import { viewCart } from "@/lib/cart";
 import { getStoreSession } from "@/lib/store-auth";
 import { CartButton } from "@/components/store/cart";
@@ -10,7 +10,7 @@ type Props = { children: React.ReactNode; params: Promise<{ site: string }> };
 
 export default async function ShopLayout({ children, params }: Props) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   const f = store.features;
 
   if (store.status === "suspended") {

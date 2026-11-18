@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 import { notFound } from "next/navigation";
-import { getStore } from "@/lib/tenant";
+import { requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { platformDb } from "@/lib/db";
 import { platformModels } from "@/lib/models/platform";
@@ -11,7 +11,7 @@ export const metadata = { title: "Activity" };
 // F-122 / UX-04: the owner's change history.
 export default async function Activity({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   await requireStaff(store, "settings");
   if (!store.features["F-122"]) notFound();
   const { AuditLog } = platformModels(await platformDb());

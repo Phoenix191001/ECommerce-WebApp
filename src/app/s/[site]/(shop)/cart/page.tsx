@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getStore, formatMoney, priceOrder } from "@/lib/tenant";
+import { formatMoney, priceOrder, requireStore } from "@/lib/tenant";
 import { evaluateDiscount, viewCart } from "@/lib/cart";
 import { Qty } from "@/components/store/cart";
 import { CodeForm } from "@/components/store/forms";
@@ -8,7 +8,7 @@ export const metadata = { title: "Cart" };
 
 export default async function CartPage({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   const cart = await viewCart(store);
   const disc = await evaluateDiscount(store, cart.discountCode, cart.subtotal);
   const totals = priceOrder(store, cart.subtotal, disc.amount, "shipping");

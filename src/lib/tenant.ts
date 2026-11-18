@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
+import { notFound } from "next/navigation";
 import { platformDb, instanceDb } from "./db";
 import { platformModels, type StoreSettings } from "./models/platform";
 import { tenantModels } from "./models/tenant";
@@ -94,4 +95,11 @@ export function priceOrder(
   }
   const tax = store.features["F-31"] ? Math.round((afterDiscount * store.settings.taxRate) / 100) : 0;
   return { subtotal, discount: Math.min(discount, subtotal), shipping, tax, total: afterDiscount + shipping + tax };
+}
+
+/** For pages and layouts under /s/[site]: 404 when the store doesn't exist. */
+export async function requireStore(site: string): Promise<StoreContext> {
+  const s = await getStore(site);
+  if (!s) notFound();
+  return s;
 }

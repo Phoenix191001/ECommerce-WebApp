@@ -1,4 +1,4 @@
-import { getStore } from "@/lib/tenant";
+import { requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { domainStatus, domainsConfigured } from "@/lib/vercel-domains";
 import { storeUrl } from "@/lib/subdomain";
@@ -10,7 +10,7 @@ export const metadata = { title: "Settings" };
 
 export default async function Settings({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   await requireStaff(store, "settings");
   const status = store.customDomain && domainsConfigured() ? await domainStatus(store.customDomain).catch(() => null) : null;
   return (

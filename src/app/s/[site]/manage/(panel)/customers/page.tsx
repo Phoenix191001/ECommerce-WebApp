@@ -1,4 +1,4 @@
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { Card } from "@/components/admin/ui";
 
@@ -6,7 +6,7 @@ export const metadata = { title: "Customers" };
 
 export default async function Customers({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   await requireStaff(store, "customers");
   const m = await storeModels(store);
   const rows = await m.Order.aggregate<{ _id: string; name: string; phone: string; orders: number; spent: number; last: Date }>([

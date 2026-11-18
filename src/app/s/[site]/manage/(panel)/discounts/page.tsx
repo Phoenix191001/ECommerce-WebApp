@@ -1,4 +1,4 @@
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { Badge, Card } from "@/components/admin/ui";
 import { DiscountForm } from "@/components/manage/forms";
@@ -8,7 +8,7 @@ export const metadata = { title: "Discounts" };
 
 export default async function Discounts({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   await requireStaff(store, "discounts");
   const codes = await (await storeModels(store)).Discount.find().sort({ createdAt: -1 }).lean();
   return (

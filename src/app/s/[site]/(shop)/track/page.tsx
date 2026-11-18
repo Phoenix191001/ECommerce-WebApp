@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
-import { getStore } from "@/lib/tenant";
+import { requireStore } from "@/lib/tenant";
 import { TrackForm } from "@/components/store/forms";
 
 export const metadata = { title: "Track your order" };
 
 export default async function TrackPage({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   if (!store.features["F-51"]) notFound();
   return (
     <main className="mx-auto max-w-md px-4 py-12">

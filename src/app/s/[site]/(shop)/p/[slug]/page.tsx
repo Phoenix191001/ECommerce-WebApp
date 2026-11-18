@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { getStore, storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/store-auth";
 import { AddToCart } from "@/components/store/cart";
 import { ReviewForm } from "@/components/store/forms";
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { site, slug } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   const f = store.features;
   if (!f["F-01"]) notFound();
   const m = await storeModels(store);

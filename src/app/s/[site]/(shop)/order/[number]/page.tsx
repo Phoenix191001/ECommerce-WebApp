@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getStore, formatMoney } from "@/lib/tenant";
+import { formatMoney, requireStore } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/store-auth";
 import { STATUS_LABEL, STATUS_STEPS, loadOrderForViewer } from "@/lib/order-view";
 import { reorder } from "../../../shop-actions";
@@ -12,7 +12,7 @@ type Props = { params: Promise<{ site: string; number: string }>; searchParams: 
 export default async function OrderPage({ params, searchParams }: Props) {
   const { site, number } = await params;
   const { t, new: isNew } = await searchParams;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   const o = await loadOrderForViewer(store, Number(number), t);
   if (!o) notFound();
   const user = await getCurrentUser(store);

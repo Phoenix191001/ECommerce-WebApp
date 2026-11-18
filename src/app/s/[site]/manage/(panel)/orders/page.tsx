@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { STATUS_LABEL } from "@/lib/order-view";
 import { Badge, Card, STATUS_TONE } from "@/components/admin/ui";
@@ -11,7 +11,7 @@ const TABS = ["all", "pending", "confirmed", "shipped", "delivered", "cancelled"
 export default async function Orders({ params, searchParams }: { params: Promise<{ site: string }>; searchParams: Promise<{ status?: string; q?: string }> }) {
   const { site } = await params;
   const { status = "all", q } = await searchParams;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   await requireStaff(store, "orders");
   const m = await storeModels(store);
   const filter: Record<string, unknown> = {};

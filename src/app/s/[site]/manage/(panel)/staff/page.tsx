@@ -1,4 +1,4 @@
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { Badge, Card, inputCls } from "@/components/admin/ui";
 import { StaffForm } from "@/components/manage/forms";
@@ -8,7 +8,7 @@ export const metadata = { title: "Staff" };
 
 export default async function Staff({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   const me = await requireStaff(store, "staff");
   const staff = await (await storeModels(store)).User.find({ role: { $in: ["owner", "manager", "cashier"] } }).sort({ role: 1, name: 1 }).lean();
   return (

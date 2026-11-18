@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getStore } from "@/lib/tenant";
+import { requireStore } from "@/lib/tenant";
 import { RegisterForm } from "@/components/store/forms";
 
 export const metadata = { title: "Create account" };
 
 export default async function RegisterPage({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   if (!store.features["F-22"]) notFound();
   return (
     <main className="mx-auto max-w-md px-4 py-12">

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getStore, formatMoney } from "@/lib/tenant";
+import { formatMoney, requireStore } from "@/lib/tenant";
 import { loadOrderForViewer } from "@/lib/order-view";
 import { PrintButton } from "@/components/store/print";
 
@@ -9,7 +9,7 @@ export const metadata = { title: "Invoice" };
 export default async function InvoicePage({ params, searchParams }: { params: Promise<{ site: string; number: string }>; searchParams: Promise<{ t?: string }> }) {
   const { site, number } = await params;
   const { t } = await searchParams;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   if (!store.features["F-52"]) notFound();
   const o = await loadOrderForViewer(store, Number(number), t);
   if (!o) notFound();

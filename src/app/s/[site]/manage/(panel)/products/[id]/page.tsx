@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { Types } from "mongoose";
-import { getStore, storeModels } from "@/lib/tenant";
+import { storeModels, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { Card } from "@/components/admin/ui";
 import { ProductEditor } from "@/components/manage/forms";
@@ -10,7 +10,7 @@ export const metadata = { title: "Edit product" };
 
 export default async function EditProduct({ params }: { params: Promise<{ site: string; id: string }> }) {
   const { site, id } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   await requireStaff(store, "catalog");
   if (!Types.ObjectId.isValid(id)) notFound();
   const m = await storeModels(store);

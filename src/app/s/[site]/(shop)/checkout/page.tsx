@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getStore, formatMoney, priceOrder } from "@/lib/tenant";
+import { formatMoney, priceOrder, requireStore } from "@/lib/tenant";
 import { evaluateDiscount, viewCart } from "@/lib/cart";
 import { getCurrentUser } from "@/lib/store-auth";
 import { CheckoutForm } from "@/components/store/forms";
@@ -9,7 +9,7 @@ export const metadata = { title: "Checkout" };
 
 export default async function CheckoutPage({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   const f = store.features;
   const b = store.base;
   const cart = await viewCart(store);

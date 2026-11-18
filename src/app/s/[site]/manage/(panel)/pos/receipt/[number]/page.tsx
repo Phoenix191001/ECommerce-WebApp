@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { PrintButton } from "@/components/store/print";
 
@@ -8,7 +8,7 @@ export const metadata = { title: "Receipt" };
 // F-39: narrow receipt for thermal printers.
 export default async function Receipt({ params }: { params: Promise<{ site: string; number: string }> }) {
   const { site, number } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   if (!store.features["F-39"]) notFound();
   await requireStaff(store, "pos");
   const o = await (await storeModels(store)).Order.findOne({ number: Number(number) }).lean();

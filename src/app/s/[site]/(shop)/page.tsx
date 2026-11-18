@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { AddToCart } from "@/components/store/cart";
 
 type Props = {
@@ -12,7 +12,7 @@ const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export default async function StoreHome({ params, searchParams }: Props) {
   const { site } = await params;
   const sp = await searchParams;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   const f = store.features;
   const b = store.base;
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getStore } from "@/lib/tenant";
+import { requireStore } from "@/lib/tenant";
 import { can, requireStaff, type Permission } from "@/lib/store-auth";
 import { staffLogout } from "../manage-actions";
 
@@ -7,7 +7,7 @@ type Props = { children: React.ReactNode; params: Promise<{ site: string }> };
 
 export default async function ManageLayout({ children, params }: Props) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   const user = await requireStaff(store);
   const f = store.features;
   const b = `${store.base}/manage`;

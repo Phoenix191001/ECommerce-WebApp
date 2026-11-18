@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/store-auth";
 import { STATUS_LABEL } from "@/lib/order-view";
 import { logoutStore, toggleWishlist } from "../../shop-actions";
@@ -9,7 +9,7 @@ export const metadata = { title: "My account" };
 
 export default async function AccountPage({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   // Turning F-22 off hides account pages and blocks account calls; orders stay readable by staff (SRS 6.3).
   if (!store.features["F-22"]) notFound();
   const user = await getCurrentUser(store);

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getStore, storeModels } from "@/lib/tenant";
+import { storeModels, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { FEATURE_MAP, STARTER_PACK } from "@/lib/features";
 import { Card, btnTealCls } from "@/components/admin/ui";
@@ -19,7 +19,7 @@ const STEPS = [
 export default async function Wizard({ params, searchParams }: { params: Promise<{ site: string }>; searchParams: Promise<{ step?: string }> }) {
   const { site } = await params;
   const { step } = await searchParams;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   await requireStaff(store, "settings");
   const done = new Set(store.onboarding.done);
   const m = await storeModels(store);

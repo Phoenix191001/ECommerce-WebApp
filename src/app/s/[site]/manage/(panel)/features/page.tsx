@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getStore } from "@/lib/tenant";
+import { requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { DESCRIPTIONS, FEATURES, GROUP_LABELS, IMPLEMENTED, type FeatureGroup } from "@/lib/features";
 import { Badge, Card, btnTealCls } from "@/components/admin/ui";
@@ -10,7 +10,7 @@ export const metadata = { title: "Features" };
 
 export default async function Features({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   await requireStaff(store, "features");
   const groups = (Object.keys(GROUP_LABELS) as FeatureGroup[]).map((g) => ({ group: g, label: GROUP_LABELS[g], features: FEATURES.filter((f) => f.group === g) }));
   return (

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { STATUS_LABEL } from "@/lib/order-view";
 import type { OrderStatus } from "@/lib/models/tenant";
@@ -18,7 +18,7 @@ const ACTIONS: Record<string, { to: OrderStatus; label: string; primary?: boolea
 
 export default async function OrderDetail({ params }: { params: Promise<{ site: string; number: string }> }) {
   const { site, number } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   await requireStaff(store, "orders");
   const m = await storeModels(store);
   const o = await m.Order.findOne({ number: Number(number) }).lean();

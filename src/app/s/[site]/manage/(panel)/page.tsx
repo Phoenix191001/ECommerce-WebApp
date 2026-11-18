@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getStore, storeModels, formatMoney } from "@/lib/tenant";
+import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { can, requireStaff } from "@/lib/store-auth";
 import { STATUS_LABEL } from "@/lib/order-view";
 import { Badge, Card, Checklist, STATUS_TONE, Stat } from "@/components/admin/ui";
@@ -17,7 +17,7 @@ function windows() {
 
 export default async function ManageHome({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
-  const store = (await getStore(site))!;
+  const store = await requireStore(site);
   const user = await requireStaff(store);
   const b = `${store.base}/manage`;
   if (user.role === "cashier") redirect(`${b}/pos`);
