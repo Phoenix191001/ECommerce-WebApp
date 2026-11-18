@@ -40,7 +40,7 @@ export function ImageField({
         const blob = await upload(`${folder}/${safe}`, f, { access: "public", handleUploadUrl: uploadUrl });
         add(blob.url);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Upload failed. Try again.");
+        setError(e instanceof Error && e.message.trim() ? e.message : "Upload failed. Check your internet connection and try again.");
       } finally {
         setBusy((n) => n - 1);
       }
