@@ -166,7 +166,10 @@ export function CloseShiftForm({ site, currency }: { site: string; currency: str
         <p className="font-semibold">Expected: {money(r.expected, currency)}</p>
         <p className="font-semibold">Counted: {money(r.counted, currency)}</p>
         <p className={`text-base font-bold ${r.difference === 0 ? "text-emerald-700" : "text-rose-600"}`}>Difference: {money(r.difference, currency)}</p>
-        <button onClick={() => window.print()} className="mt-2 rounded-lg border px-3 py-1">🖨️ Print report</button>
+        <div className="mt-2 flex gap-2 print:hidden">
+          <button onClick={() => window.print()} className="rounded-lg border px-3 py-1">🖨️ Print report</button>
+          <button onClick={() => window.location.reload()} className="rounded-lg bg-slate-800 px-3 py-1 font-semibold text-white">Done</button>
+        </div>
       </div>
     );
   }

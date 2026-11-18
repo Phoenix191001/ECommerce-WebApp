@@ -46,7 +46,8 @@ export async function closeShift(site: string, _: PosResult | undefined, form: F
   shift.countedCash = counted;
   await shift.save();
   const expected = shift.openingCash + shift.cashSales - shift.cashRefunds;
-  revalidatePath(`/s/${store.subdomain}/manage/pos`);
+  // No revalidation here: the cashier needs to see this report before the page resets.
+  void store;
   return {
     ok: "Shift closed.",
     report: { openingCash: shift.openingCash, cashSales: shift.cashSales, cashRefunds: shift.cashRefunds, expected, counted, difference: counted - expected },
