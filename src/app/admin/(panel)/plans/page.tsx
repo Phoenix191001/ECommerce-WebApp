@@ -36,6 +36,7 @@ export default async function PlansPage() {
             plan={{
               id: String(p._id), name: p.name, description: p.description, priceMonthly: p.priceMonthly,
               features: p.features, maxProducts: p.maxProducts, maxStaff: p.maxStaff, maxDomains: p.maxDomains,
+              requiresActivation: !!p.requiresActivation,
             }}
           />
         </Card>

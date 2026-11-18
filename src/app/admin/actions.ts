@@ -253,6 +253,7 @@ export async function savePlan(planId: string | null, _: FormState, form: FormDa
     maxProducts: n("maxProducts"),
     maxStaff: n("maxStaff"),
     maxDomains: n("maxDomains"),
+    requiresActivation: form.get("requiresActivation") === "1",
   };
   const { Plan, AuditLog } = await models();
   try {

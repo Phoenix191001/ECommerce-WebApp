@@ -8,6 +8,8 @@ export interface Plan {
   maxProducts: number;
   maxStaff: number;
   maxDomains: number;
+  /** Not self-serve: shoppers must contact the platform to activate it. */
+  requiresActivation: boolean;
 }
 
 export interface Instance {
@@ -87,6 +89,7 @@ const planSchema = new Schema<Plan>(
     maxProducts: { type: Number, default: 0 }, // 0 = unlimited
     maxStaff: { type: Number, default: 0 },
     maxDomains: { type: Number, default: 1 },
+    requiresActivation: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

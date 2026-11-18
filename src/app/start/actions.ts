@@ -31,7 +31,8 @@ export async function startStore(_: StartState, form: FormData): Promise<StartSt
   const { Plan } = platformModels(await platformDb());
   const plan = await Plan.findById(d.planId).lean();
   if (!plan) return { error: "That plan no longer exists." };
-  if (plan.priceMonthly > 0) return { error: `Paid plans need online payment, which isn't set up yet. Choose a free plan or contact us about ${plan.name}.` };
+  if (plan.requiresActivation || plan.priceMonthly > 0)
+    return { error: `${plan.name} is activated by our team. Use “Contact us to activate” on the ${plan.name} card, or choose another plan.` };
   const res = await provisionInstance(d, { email: d.ownerEmail, role: "system" });
   if ("error" in res) return { error: res.error };
   const m = tenantModels(await instanceDb(res.id));

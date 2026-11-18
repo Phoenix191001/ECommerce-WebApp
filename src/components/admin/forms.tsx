@@ -158,7 +158,7 @@ export function PlanForm({
   plan,
   groups,
 }: {
-  plan?: { id: string; name: string; description: string; priceMonthly: number; features: string[]; maxProducts: number; maxStaff: number; maxDomains: number };
+  plan?: { id: string; name: string; description: string; priceMonthly: number; features: string[]; maxProducts: number; maxStaff: number; maxDomains: number; requiresActivation?: boolean };
   groups: PlanGroup[];
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(savePlan.bind(null, plan?.id ?? null), undefined);
@@ -177,6 +177,13 @@ export function PlanForm({
         <Field label="Max staff" hint="0 = unlimited"><input name="maxStaff" type="number" min="0" defaultValue={plan?.maxStaff ?? 0} className={inputCls} /></Field>
         <Field label="Custom domains"><input name="maxDomains" type="number" min="0" defaultValue={plan?.maxDomains ?? 0} className={inputCls} /></Field>
       </div>
+      <label className="flex items-start gap-2 rounded-lg bg-violet-50 p-3 text-sm">
+        <input type="checkbox" name="requiresActivation" value="1" defaultChecked={!!plan?.requiresActivation} className="mt-0.5 accent-violet-600" />
+        <span>
+          <b>Contact to activate</b>
+          <span className="block text-xs text-slate-600">Shoppers can&apos;t pick this plan on the signup page; they see a button to email you instead. You assign it to their store from the store&apos;s page.</span>
+        </span>
+      </label>
       <details className="rounded-xl border border-slate-200 p-3">
         <summary className="cursor-pointer text-sm font-semibold text-slate-800">Included features ({sel.size})</summary>
         <div className="mt-3 space-y-4">

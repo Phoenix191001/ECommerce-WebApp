@@ -19,6 +19,7 @@ const TEMPLATES = [
     maxProducts: 100,
     maxStaff: 2,
     maxDomains: 0,
+    requiresActivation: false,
   },
   {
     name: "Pro",
@@ -28,8 +29,12 @@ const TEMPLATES = [
     maxProducts: 0,
     maxStaff: 0,
     maxDomains: 3,
+    requiresActivation: true,
   },
 ];
+
+// The first version's Starter description mentioned card payments, which aren't offered.
+const OLD_STARTER_DESCRIPTION = "Core online store: catalog, cart, checkout, COD and card payments.";
 
 export async function ensurePlans() {
   const conn = await platformDb();
@@ -41,4 +46,13 @@ export async function ensurePlans() {
   }
   // Keep the built-in Starter template up to date with newly implemented features.
   await Plan.updateOne({ name: "Starter" }, { $addToSet: { features: { $each: STARTER_PLAN_FEATURES } } });
+  await Plan.updateOne({ name: "Starter", description: OLD_STARTER_DESCRIPTION }, { $set: { description: TEMPLATES[0].description } });
+  // One-time: Pro becomes contact-to-activate. Plans that already have the flag keep whatever the admin chose.
+  await Plan.updateOne({ name: "Pro", requiresActivation: { $exists: false } }, { $set: { requiresActivation: true } });
 }
+
+/** Where shoppers ask to activate a contact-only plan. Set SALES_EMAIL in the environment. */
+export const salesEmail = () => {
+  const e = (process.env.SALES_EMAIL ?? "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? e : "";
+};
