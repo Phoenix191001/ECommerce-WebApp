@@ -228,7 +228,10 @@ export async function deleteInstance(instanceId: string, _: FormState, form: For
   if (!inst.exportedAt || Date.now() - inst.exportedAt.getTime() > 24 * 3600_000)
     return { error: "Download the data export first (button above). Deletion is allowed for 24 hours after an export." };
   if (inst.customDomain) await removeProjectDomain(inst.customDomain).catch(() => {});
-  await (await instanceDb(instanceId)).dropDatabase();
+  // The app's database user can drop collections but not whole databases;
+  // an empty database disappears once its last collection is dropped.
+  const db = (await instanceDb(instanceId)).db!;
+  for (const c of await db.listCollections({}, { nameOnly: true }).toArray()) await db.dropCollection(c.name);
   await Instance.deleteOne({ _id: inst._id });
   await AuditLog.create({ instance: inst._id, actor: admin.email, actorRole: "super_admin", action: "instance.delete", oldValue: inst.subdomain });
   redirect("/admin");

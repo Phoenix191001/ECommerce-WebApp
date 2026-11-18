@@ -297,7 +297,7 @@ export async function nextOrderNumber(m: TenantModels): Promise<number> {
   const c = await m.Counter.findOneAndUpdate(
     { _id: "order" },
     { $inc: { seq: 1 } },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: "after" },
   ).lean();
   return 1000 + (c?.seq ?? 1);
 }
