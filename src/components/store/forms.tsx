@@ -37,11 +37,19 @@ type CheckoutProps = {
   pickupAddress: string;
   methods: { id: "cod" | "card" | "wallet"; label: string; note: string; available: boolean }[];
   totalLabel: string;
+  addresses?: { label: string; address: string; city: string; phone: string }[];
+  canSaveAddress?: boolean;
+  slots?: string[];
+  giftWrapFee?: string | null;
+  points?: { balance: number; worth: string } | null;
+  credit?: { balance: string } | null;
 };
 
-export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, totalLabel }: CheckoutProps) {
+export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, totalLabel, addresses = [], canSaveAddress, slots = [], giftWrapFee, points, credit }: CheckoutProps) {
   const [s, a, p] = useActionState<ShopState, FormData>(placeOrder.bind(null, site), undefined);
   const [delivery, setDelivery] = useState<"shipping" | "pickup">("shipping");
+  const [addr, setAddr] = useState(defaults);
+  const [gift, setGift] = useState(false);
   const first = methods.find((m) => m.available)?.id;
   return (
     <KeepForm action={a} className="space-y-6">
@@ -49,7 +57,7 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
         <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">1</span> Contact</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <L label="Full name"><input name="name" required defaultValue={defaults.name} autoComplete="name" className={field} /></L>
-          <L label="Phone"><input name="phone" required defaultValue={defaults.phone} autoComplete="tel" className={field} placeholder="03xx xxxxxxx" /></L>
+          <L label="Phone"><input name="phone" required value={addr.phone} onChange={(e) => setAddr({ ...addr, phone: e.target.value })} autoComplete="tel" className={field} placeholder="03xx xxxxxxx" /></L>
         </div>
         <L label="Email"><input name="email" type="email" required defaultValue={defaults.email} autoComplete="email" className={field} /></L>
       </section>
@@ -68,10 +76,37 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
           </div>
         )}
         {!pickup && <input type="hidden" name="delivery" value="shipping" />}
+        {delivery === "shipping" && addresses.length > 0 && (
+          <div className="flex flex-wrap gap-2" aria-label="Saved addresses">
+            {addresses.map((x, i) => (
+              <button type="button" key={i} onClick={() => setAddr({ ...addr, address: x.address, city: x.city, phone: x.phone || addr.phone })}
+                className={`rounded-xl border-2 px-3 py-1.5 text-start text-xs ${addr.address === x.address ? "border-brand bg-brand-soft" : "border-slate-200"}`}>
+                <b>{x.label}</b><span className="block text-slate-600">{x.address}, {x.city}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {delivery === "shipping" && (
           <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
-            <L label="Address"><input name="address" required defaultValue={defaults.address} autoComplete="street-address" className={field} /></L>
-            <L label="City"><input name="city" required defaultValue={defaults.city} autoComplete="address-level2" className={field} /></L>
+            <L label="Address"><input name="address" required value={addr.address} onChange={(e) => setAddr({ ...addr, address: e.target.value })} autoComplete="street-address" className={field} /></L>
+            <L label="City"><input name="city" required value={addr.city} onChange={(e) => setAddr({ ...addr, city: e.target.value })} autoComplete="address-level2" className={field} /></L>
+          </div>
+        )}
+        {delivery === "shipping" && canSaveAddress && (
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="saveAddress" value="1" /> Save this address to my account</label>
+        )}
+        {delivery === "shipping" && slots.length > 0 && (
+          <L label="Delivery time">
+            <select name="slot" required defaultValue="" className={field}>
+              <option value="" disabled>Choose a time slot</option>
+              {slots.map((x) => <option key={x}>{x}</option>)}
+            </select>
+          </L>
+        )}
+        {giftWrapFee && (
+          <div className="space-y-2 rounded-xl bg-slate-50 p-3">
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="giftWrap" value="1" checked={gift} onChange={(e) => setGift(e.target.checked)} /> 🎁 Gift wrap this order (+{giftWrapFee})</label>
+            {gift && <input name="giftMessage" maxLength={300} placeholder="Gift message (optional)" aria-label="Gift message" className={field} />}
           </div>
         )}
         <L label="Note for the store (optional)"><input name="note" className={field} /></L>
@@ -87,6 +122,12 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
             </label>
           ))}
         </div>
+        {(points || credit) && (
+          <div className="space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
+            {points && points.balance > 0 && <label className="flex items-center gap-2"><input type="checkbox" name="usePoints" value="1" /> ⭐ Use my {points.balance} points (worth {points.worth})</label>}
+            {credit && <label className="flex items-center gap-2"><input type="checkbox" name="useCredit" value="1" /> 💳 Use my store credit ({credit.balance})</label>}
+          </div>
+        )}
       </section>
       <Msg s={s} />
       <button className="btn-brand w-full !py-3 text-base" disabled={p || !first}>{p ? "Placing order…" : `Place order · ${totalLabel}`}</button>
@@ -100,19 +141,22 @@ export function LoginForm({ site }: { site: string }) {
     <KeepForm action={a} className="space-y-3">
       <L label="Email"><input name="email" type="email" required autoComplete="email" className={field} /></L>
       <L label="Password"><input name="password" type="password" required autoComplete="current-password" className={field} /></L>
+      {s?.needCode && <L label="6-digit code"><input name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={7} autoFocus className={`${field} text-center font-mono tracking-widest`} /></L>}
       <Msg s={s} />
       <button className="btn-brand w-full" disabled={p}>{p ? "Signing in…" : "Sign in"}</button>
     </KeepForm>
   );
 }
 
-export function RegisterForm({ site }: { site: string }) {
+export function RegisterForm({ site, referral, newsletter, refCode }: { site: string; referral?: boolean; newsletter?: boolean; refCode?: string }) {
   const [s, a, p] = useActionState<ShopState, FormData>(register.bind(null, site), undefined);
   return (
     <KeepForm action={a} className="space-y-3">
       <L label="Name"><input name="name" required autoComplete="name" className={field} /></L>
       <L label="Email"><input name="email" type="email" required autoComplete="email" className={field} /></L>
       <L label="Password"><input name="password" type="password" required minLength={8} autoComplete="new-password" className={field} /></L>
+      {referral && <L label="Referral code (optional)"><input name="referral" defaultValue={refCode} className={`${field} uppercase`} /></L>}
+      {newsletter && <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="newsletter" value="1" /> Email me offers and news</label>}
       <Msg s={s} />
       <button className="btn-brand w-full" disabled={p}>{p ? "Creating…" : "Create account"}</button>
     </KeepForm>
@@ -150,17 +194,18 @@ export function ReviewForm({ site, product }: { site: string; product: string })
 }
 
 /** Rendered only when the server saw no consent cookie (F-79). */
-export function CookieBanner() {
+export function CookieBanner({ text, accept: label }: { text: string; accept: string }) {
   const [hidden, setHidden] = useState(false);
   if (hidden) return null;
   const accept = () => {
     document.cookie = "cc=1; path=/; max-age=31536000; samesite=lax";
     setHidden(true);
+    window.location.reload(); // load analytics now that consent is given
   };
   return (
     <div className="fixed inset-x-3 bottom-3 z-40 mx-auto flex max-w-2xl flex-wrap items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white shadow-2xl">
-      <span className="flex-1">🍪 We use cookies to keep your cart and sign-in working, and to improve the store.</span>
-      <button onClick={accept} className="btn-brand !py-1.5">Accept</button>
+      <span className="flex-1">{text}</span>
+      <button onClick={accept} className="btn-brand !py-1.5">{label}</button>
     </div>
   );
 }

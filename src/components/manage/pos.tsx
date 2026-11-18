@@ -4,7 +4,7 @@ import { KeepForm } from "@/components/keep-form";
 import { useActionState, useMemo, useRef, useState, useTransition } from "react";
 import { closeShift, openShift, posRefund, posSale, type PosResult } from "@/app/s/[site]/manage/pos-actions";
 
-type Prod = { id: string; name: string; price: number; barcode: string; sku: string; stock: number; image?: string };
+type Prod = { id: string; variant?: string; key: string; name: string; price: number; barcode: string; sku: string; stock: number };
 
 const money = (n: number, c: string) => new Intl.NumberFormat("en-PK", { style: "currency", currency: c, maximumFractionDigits: 0 }).format(n);
 
@@ -17,7 +17,7 @@ export function PosScreen({ site, products, currency, taxRate, barcode, trackSto
   const [msg, setMsg] = useState<PosResult | null>(null);
   const [pending, start] = useTransition();
   const scanRef = useRef<HTMLInputElement>(null);
-  const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  const byId = useMemo(() => new Map(products.map((p) => [p.key, p])), [products]);
   const add = (id: string, n = 1) => setTicket((t) => ({ ...t, [id]: Math.max(0, (t[id] ?? 0) + n) }));
   const lines = Object.entries(ticket).filter(([, n]) => n > 0).map(([id, qty]) => ({ p: byId.get(id)!, qty })).filter((l) => l.p);
   const subtotal = lines.reduce((n, l) => n + l.p.price * l.qty, 0);
@@ -30,15 +30,15 @@ export function PosScreen({ site, products, currency, taxRate, barcode, trackSto
     e.preventDefault();
     const code = q.trim();
     const hit = products.find((p) => (p.barcode && p.barcode === code) || (p.sku && p.sku === code));
-    if (hit) { add(hit.id); setQ(""); setMsg(null); }
-    else if (shown.length === 1) { add(shown[0].id); setQ(""); }
+    if (hit) { add(hit.key); setQ(""); setMsg(null); }
+    else if (shown.length === 1) { add(shown[0].key); setQ(""); }
     else setMsg({ error: `No product with barcode or SKU “${code}”.` });
     scanRef.current?.focus();
   };
 
   const complete = () =>
     start(async () => {
-      const r = await posSale(site, lines.map((l) => ({ id: l.p.id, qty: l.qty })), cash);
+      const r = await posSale(site, lines.map((l) => ({ id: l.p.id, variant: l.p.variant, qty: l.qty })), cash);
       setMsg(r);
       if (!r.error) { setTicket({}); setTendered(""); }
       scanRef.current?.focus();
@@ -60,10 +60,10 @@ export function PosScreen({ site, products, currency, taxRate, barcode, trackSto
         </form>
         <ul className="grid max-h-[60vh] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4">
           {shown.slice(0, 120).map((p) => (
-            <li key={p.id}>
+            <li key={p.key}>
               <button
-                onClick={() => add(p.id)}
-                disabled={trackStock && p.stock - (ticket[p.id] ?? 0) <= 0}
+                onClick={() => add(p.key)}
+                disabled={trackStock && p.stock - (ticket[p.key] ?? 0) <= 0}
                 className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-3 text-left text-sm shadow-sm transition hover:border-emerald-400 hover:shadow disabled:opacity-40"
               >
                 <span className="line-clamp-2 font-medium">{p.name}</span>
@@ -80,11 +80,11 @@ export function PosScreen({ site, products, currency, taxRate, barcode, trackSto
           {lines.length === 0 ? <p className="py-6 text-center text-sm text-slate-500">Scan or tap products to add them.</p> : (
             <ul className="max-h-64 divide-y divide-slate-100 overflow-y-auto text-sm">
               {lines.map((l) => (
-                <li key={l.p.id} className="flex items-center gap-2 py-2">
+                <li key={l.p.key} className="flex items-center gap-2 py-2">
                   <span className="flex-1 truncate">{l.p.name}</span>
-                  <button onClick={() => add(l.p.id, -1)} className="h-7 w-7 rounded-md border" aria-label="Decrease">−</button>
+                  <button onClick={() => add(l.p.key, -1)} className="h-7 w-7 rounded-md border" aria-label="Decrease">−</button>
                   <span className="w-6 text-center">{l.qty}</span>
-                  <button onClick={() => add(l.p.id)} className="h-7 w-7 rounded-md border" aria-label="Increase">+</button>
+                  <button onClick={() => add(l.p.key)} className="h-7 w-7 rounded-md border" aria-label="Increase">+</button>
                   <span className="w-20 text-right font-medium">{money(l.p.price * l.qty, currency)}</span>
                 </li>
               ))}

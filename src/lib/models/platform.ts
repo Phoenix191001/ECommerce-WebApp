@@ -40,6 +40,20 @@ export interface StoreSettings {
   seoTitle: string;
   seoDescription: string;
   lowStockAt: number;
+  giftWrapFee: number; // F-74
+  deliverySlots: string[]; // F-60
+  ntn: string; // F-104
+  gstNumber: string;
+  gaId: string; // F-76
+  pixelId: string;
+  pointsPer: number; // F-28: spend this much to earn 1 point
+  pointValue: number; // value of 1 point at checkout
+  referralReward: number; // F-70 store credit for both sides
+  refundApprovalAbove: number; // F-105
+  exitOfferCode: string; // F-119
+  customCss: string; // F-115
+  menu: { label: string; url: string }[]; // F-117
+  locations: { name: string; address: string; phone: string; hours: string }[]; // F-88
 }
 
 export interface AuditLog {
@@ -114,6 +128,20 @@ const instanceSchema = new Schema<Instance>(
       seoTitle: { type: String, default: "" },
       seoDescription: { type: String, default: "" },
       lowStockAt: { type: Number, default: 5, min: 0 },
+      giftWrapFee: { type: Number, default: 150, min: 0 },
+      deliverySlots: { type: [String], default: ["Morning (9am–12pm)", "Afternoon (12pm–4pm)", "Evening (4pm–8pm)"] },
+      ntn: { type: String, default: "" },
+      gstNumber: { type: String, default: "" },
+      gaId: { type: String, default: "" },
+      pixelId: { type: String, default: "" },
+      pointsPer: { type: Number, default: 100, min: 1 },
+      pointValue: { type: Number, default: 1, min: 0 },
+      referralReward: { type: Number, default: 200, min: 0 },
+      refundApprovalAbove: { type: Number, default: 10000, min: 0 },
+      exitOfferCode: { type: String, default: "" },
+      customCss: { type: String, default: "", maxlength: 20000 },
+      menu: { type: [{ _id: false, label: String, url: String }], default: [] },
+      locations: { type: [{ _id: false, name: String, address: String, phone: String, hours: String }], default: [] },
     },
     onboarding: {
       done: { type: [String], default: [] },

@@ -20,9 +20,11 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
         <div>
           <h1 className="text-brand text-2xl font-bold">{store.name}</h1>
           {store.settings.contactEmail && <p className="text-sm text-slate-500">{store.settings.contactEmail}</p>}
+          {store.features["F-104"] && store.settings.ntn && <p className="text-sm text-slate-500">NTN: {store.settings.ntn}</p>}
+          {store.features["F-104"] && store.settings.gstNumber && <p className="text-sm text-slate-500">GST/STRN: {store.settings.gstNumber}</p>}
         </div>
         <div className="text-right">
-          <p className="text-xl font-bold">INVOICE</p>
+          <p className="text-xl font-bold">{store.features["F-104"] && (store.settings.ntn || store.settings.gstNumber) ? "SALES TAX INVOICE" : "INVOICE"}</p>
           <p className="text-sm text-slate-600">#{o.number}</p>
           <p className="text-sm text-slate-600">{new Date(o.createdAt!).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })}</p>
         </div>
@@ -37,7 +39,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
         <thead><tr className="border-b-2 border-slate-800 text-left"><th className="py-2">Item</th><th className="text-right">Qty</th><th className="text-right">Price</th><th className="text-right">Amount</th></tr></thead>
         <tbody>
           {o.items.map((i) => (
-            <tr key={String(i.product)} className="border-b border-slate-200"><td className="py-2">{i.name}</td><td className="text-right">{i.qty}</td><td className="text-right">{fm(i.price)}</td><td className="text-right">{fm(i.price * i.qty)}</td></tr>
+            <tr key={`${i.product}:${i.variant ?? ""}`} className="border-b border-slate-200"><td className="py-2">{i.name}{i.variantName ? ` (${i.variantName})` : ""}</td><td className="text-right">{i.qty}</td><td className="text-right">{fm(i.price)}</td><td className="text-right">{fm(i.price * i.qty)}</td></tr>
           ))}
         </tbody>
       </table>
@@ -46,6 +48,9 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
         {o.discount > 0 && <div className="flex justify-between"><dt>Discount</dt><dd>−{fm(o.discount)}</dd></div>}
         <div className="flex justify-between"><dt>Delivery</dt><dd>{fm(o.shipping)}</dd></div>
         {o.tax > 0 && <div className="flex justify-between"><dt>Tax ({store.settings.taxRate}%)</dt><dd>{fm(o.tax)}</dd></div>}
+        {o.giftWrapFee > 0 && <div className="flex justify-between"><dt>Gift wrap</dt><dd>{fm(o.giftWrapFee)}</dd></div>}
+        {o.pointsDiscount > 0 && <div className="flex justify-between"><dt>Points</dt><dd>−{fm(o.pointsDiscount)}</dd></div>}
+        {o.creditUsed > 0 && <div className="flex justify-between"><dt>Store credit</dt><dd>−{fm(o.creditUsed)}</dd></div>}
         <div className="flex justify-between border-t-2 border-slate-800 pt-1 text-base font-bold"><dt>Total</dt><dd>{fm(o.total)}</dd></div>
         <div className="flex justify-between text-slate-600"><dt>Payment</dt><dd>{o.paymentStatus === "paid" ? "Paid" : "Due on delivery"}</dd></div>
       </dl>

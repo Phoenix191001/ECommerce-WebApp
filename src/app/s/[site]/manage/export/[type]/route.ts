@@ -31,6 +31,15 @@ export async function GET(_: Request, { params }: { params: Promise<{ site: stri
       ["name", "slug", "price", "compare_at_price", "stock", "category", "brand", "sku", "barcode", "status", "images"],
       ...products.map((p) => [p.name, p.slug, p.price, p.compareAtPrice ?? "", p.stock, p.category, p.brand, p.sku, p.barcode, p.status, p.images.join(" ")]),
     ]);
+  } else if (type === "subscribers") {
+    if (!can(user?.role, "customers") || !store.features["F-44"]) return new Response("Sign in as staff first.", { status: 401 });
+    const subs = await m.Subscriber.find().sort({ createdAt: -1 }).lean();
+    body = csv([["email", "subscribed_at"], ...subs.map((x) => [x.email, x.createdAt?.toISOString()])]);
+  } else if (type === "customers") {
+    if (!can(user?.role, "customers")) return new Response("Sign in as staff first.", { status: 401 });
+    const users = await m.User.find({ role: "customer" }).lean();
+    body = csv([["name", "email", "phone", "joined", "loyalty_points", "store_credit", "wholesale", "newsletter"],
+      ...users.map((u) => [u.name, u.email, u.phone, u.createdAt?.toISOString(), u.loyaltyPoints ?? 0, u.storeCredit ?? 0, u.wholesale ? "yes" : "", u.newsletter ? "yes" : ""])]);
   } else return new Response("Not found", { status: 404 });
   return new Response("﻿" + body, {
     headers: {

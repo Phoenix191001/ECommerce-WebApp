@@ -15,6 +15,11 @@ import { applyStarterPack, applyToggle, type ToggleResult } from "@/lib/toggles"
 import { esc, sendEmail } from "@/lib/email";
 import { addProjectDomain, domainsConfigured, removeProjectDomain } from "@/lib/vercel-domains";
 import type { OrderStatus } from "@/lib/models/tenant";
+import { linesOf, releaseStock } from "@/lib/stock";
+import { sendBackInStock } from "@/lib/stock-alerts";
+import { fireWebhook } from "@/lib/webhooks";
+import { rewardDelivered } from "@/lib/rewards";
+import { parseCsv } from "@/lib/csv";
 
 export type MState = { error?: string; ok?: string } | undefined;
 
@@ -81,10 +86,11 @@ export async function markOnboarding(site: string, step: string) {
 
 // ---------- Products ----------
 
+const optNum = z.union([z.literal(""), z.coerce.number().min(0)]).optional();
 const productSchema = z.object({
   name: z.string().trim().min(1, "Enter a product name.").max(200),
   price: z.coerce.number().min(0, "Price can't be negative."),
-  compareAtPrice: z.union([z.literal(""), z.coerce.number().min(0)]).optional(),
+  compareAtPrice: optNum,
   stock: z.coerce.number().int("Stock must be a whole number.").min(0).default(0),
   category: z.string().trim().max(80).optional().default(""),
   brand: z.string().trim().max(80).optional().default(""),
@@ -93,10 +99,51 @@ const productSchema = z.object({
   images: z.string().optional().default(""),
   description: z.string().trim().max(5000).optional().default(""),
   status: z.enum(["active", "draft"]).default("active"),
+  optionNames: z.string().trim().max(100).optional().default(""),
+  variants: z.string().max(10000).optional().default(""),
+  tags: z.string().max(500).optional().default(""),
+  publishAt: z.string().optional().default(""),
+  warrantyMonths: z.coerce.number().int().min(0).max(240).default(0),
+  sizeGuide: z.string().max(5000).optional().default(""),
+  volumeTiers: z.string().max(1000).optional().default(""),
+  salePrice: optNum,
+  saleEndsAt: z.string().optional().default(""),
+  costPrice: z.coerce.number().min(0).default(0),
+  wholesalePrice: optNum,
 });
 
 const slugify = (s: string) =>
   s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "product";
+
+/** "Red / M | 1500 | 10 | SKU | barcode" per line; price may be empty to use the product price. */
+function parseVariants(text: string, existing: { _id: Types.ObjectId; name: string }[]) {
+  const out: { _id: Types.ObjectId; name: string; price?: number; stock: number; sku: string; barcode: string }[] = [];
+  for (const line of text.split("\n").map((l) => l.trim()).filter(Boolean)) {
+    const [name, price, stock, sku, barcode] = line.split("|").map((x) => x.trim());
+    if (!name) continue;
+    if (out.some((v) => v.name.toLowerCase() === name.toLowerCase())) return { error: `The variant "${name}" is listed twice.` };
+    const pr = price ? Number(price) : undefined;
+    const st = stock ? Number(stock) : 0;
+    if ((pr !== undefined && !(pr >= 0)) || !(Number.isInteger(st) && st >= 0)) return { error: `Check the price and stock for "${name}".` };
+    // Keep the same id for a variant with the same name, so carts and orders still point at it.
+    const keep = existing.find((v) => v.name.toLowerCase() === name.toLowerCase());
+    out.push({ _id: keep?._id ?? new Types.ObjectId(), name: name.slice(0, 80), price: pr, stock: st, sku: (sku ?? "").slice(0, 80), barcode: (barcode ?? "").slice(0, 80) });
+  }
+  return { variants: out.slice(0, 100) };
+}
+
+function parseTiers(text: string) {
+  const tiers: { minQty: number; price: number }[] = [];
+  for (const line of text.split(/[\n,]/).map((l) => l.trim()).filter(Boolean)) {
+    const mt = line.match(/^(\d+)\s*(?:\+|=|:)?\s*=?\s*(\d+(?:\.\d+)?)$/);
+    if (!mt || Number(mt[1]) < 2) return { error: `Write volume prices like "10 = 900" (buy 10 or more, pay 900 each). Problem: "${line}".` };
+    tiers.push({ minQty: Number(mt[1]), price: Number(mt[2]) });
+  }
+  return { tiers: tiers.sort((a, b) => a.minQty - b.minQty).slice(0, 10) };
+}
+
+const num = (v: number | "" | undefined) => (v === "" || v === undefined ? undefined : v);
+const date = (v: string) => (v ? new Date(v) : undefined);
 
 export async function saveProduct(site: string, id: string | null, _: MState, form: FormData): Promise<MState> {
   const { store, user, m } = await ctx(site, "catalog");
@@ -104,19 +151,36 @@ export async function saveProduct(site: string, id: string | null, _: MState, fo
   const parsed = productSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
-  const images = d.images
-    .split(/\s+/)
-    .map((s) => s.trim())
-    .filter((s) => /^https?:\/\/\S+$/i.test(s))
-    .slice(0, 12);
+  if (id && !Types.ObjectId.isValid(id)) return { error: "Unknown product." };
+  const before = id ? await m.Product.findById(id).lean() : null;
+  if (id && !before) return { error: "Product not found." };
+  const images = d.images.split(/\s+/).map((s) => s.trim()).filter((s) => /^https?:\/\/\S+$/i.test(s)).slice(0, 12);
+  const pv = parseVariants(d.variants, (before?.variants ?? []) as { _id: Types.ObjectId; name: string }[]);
+  if (pv.error) return { error: pv.error };
+  const pt = parseTiers(d.volumeTiers);
+  if (pt.error) return { error: pt.error };
+  if (num(d.salePrice) !== undefined && !d.saleEndsAt) return { error: "A flash sale needs an end date and time." };
   const doc = {
     name: d.name, price: d.price, stock: d.stock, category: d.category, brand: d.brand, sku: d.sku,
     barcode: d.barcode, description: d.description, status: d.status, images,
-    compareAtPrice: d.compareAtPrice === "" || d.compareAtPrice === undefined ? undefined : d.compareAtPrice,
+    compareAtPrice: num(d.compareAtPrice),
+    optionNames: d.optionNames.split("/").map((x) => x.trim()).filter(Boolean).slice(0, 3),
+    variants: pv.variants!,
+    tags: [...new Set(d.tags.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean))].slice(0, 20),
+    publishAt: date(d.publishAt),
+    warrantyMonths: d.warrantyMonths,
+    sizeGuide: d.sizeGuide.trim(),
+    volumeTiers: pt.tiers!,
+    salePrice: num(d.salePrice),
+    saleEndsAt: num(d.salePrice) !== undefined ? date(d.saleEndsAt) : undefined,
+    costPrice: d.costPrice,
+    wholesalePrice: num(d.wholesalePrice),
   };
+  const unset = Object.fromEntries(Object.entries(doc).filter(([, v]) => v === undefined).map(([k]) => [k, 1]));
+  const set = Object.fromEntries(Object.entries(doc).filter(([, v]) => v !== undefined));
+  let productId = id;
   if (id) {
-    if (!Types.ObjectId.isValid(id)) return { error: "Unknown product." };
-    await m.Product.updateOne({ _id: id }, { $set: doc, ...(doc.compareAtPrice === undefined ? { $unset: { compareAtPrice: 1 } } : {}) });
+    await m.Product.updateOne({ _id: id }, { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) });
     await audit(store, actorEmail(user), "product.update", d.name);
   } else {
     const { Instance, Plan } = platformModels(await platformDb());
@@ -127,13 +191,16 @@ export async function saveProduct(site: string, id: string | null, _: MState, fo
       return { error: `Your plan allows ${max} products. Upgrade your plan to add more.` };
     let slug = slugify(d.name);
     if (await m.Product.exists({ slug })) slug = `${slug}-${Date.now().toString(36)}`;
-    await m.Product.create({ ...doc, slug });
+    const created = await m.Product.create({ ...set, slug });
+    productId = String(created._id);
     await audit(store, actorEmail(user), "product.create", d.name);
     if (!store.onboarding.done.includes("product")) await markOnboarding(site, "product").catch(() => {});
   }
+  const alerted = productId ? await sendBackInStock(store, m, productId) : 0;
+  await fireWebhook(store, "product.updated", { id: productId, name: d.name, price: d.price }).catch(() => {});
   refresh(store);
   if (!id) redirect(`${store.base}/manage/products?saved=1`);
-  return { ok: "Saved." };
+  return { ok: alerted ? `Saved. Emailed ${alerted} shopper(s) waiting for it to be back in stock.` : "Saved." };
 }
 
 export async function deleteProduct(site: string, id: string) {
@@ -165,9 +232,20 @@ export async function setOrderStatus(site: string, number: number, status: Order
   o.history.push({ status, at: new Date(), by: user.name });
   if (status === "delivered" && o.paymentMethod === "cod") o.paymentStatus = "paid";
   // Cancelled orders give their stock back.
-  if (status === "cancelled" && store.features["F-17"])
-    for (const it of o.items) await m.Product.updateOne({ _id: it.product }, { $inc: { stock: it.qty } });
+  if (status === "cancelled" && store.features["F-17"]) await releaseStock(m, linesOf(o.items));
+  // Cancelled orders give back loyalty points and store credit the customer used.
+  if (status === "cancelled" && o.user && (o.pointsRedeemed || o.creditUsed)) {
+    await m.User.updateOne(
+      { _id: o.user },
+      {
+        $inc: { loyaltyPoints: o.pointsRedeemed, storeCredit: o.creditUsed },
+        ...(o.creditUsed ? { $push: { creditHistory: { amount: o.creditUsed, reason: `Order #${number} cancelled`, at: new Date() } } } : {}),
+      },
+    );
+  }
   await o.save();
+  if (status === "delivered") await rewardDelivered(store, m, number);
+  await fireWebhook(store, "order.status_changed", { number, from: old, to: status }).catch(() => {});
   await audit(store, actorEmail(user), "order.status", `#${number}`, old, status);
   if (store.features["F-41"] && o.customer.email) {
     const label = { confirmed: "is confirmed", shipped: "is on the way", delivered: "was delivered", cancelled: "was cancelled" }[status as string] ?? `is ${status}`;
@@ -401,5 +479,190 @@ export async function removeCustomDomain(site: string) {
   const { Instance } = platformModels(await platformDb());
   await Instance.updateOne({ _id: store.id }, { $unset: { customDomain: 1 } });
   await audit(store, actorEmail(user), "domain.remove", store.customDomain);
+  refresh(store);
+}
+
+// ---------- Bulk import and editing (F-90, F-91) ----------
+
+export async function importProductsCsv(site: string, _: MState, form: FormData): Promise<MState> {
+  const { store, user, m } = await ctx(site, "catalog");
+  if (!store.features["F-90"]) return { error: "Turn on bulk import (F-90) first." };
+  const file = form.get("file");
+  const text = file instanceof File && file.size ? await file.text() : String(form.get("csv") ?? "");
+  if (!text.trim()) return { error: "Choose a CSV file or paste CSV text." };
+  if (text.length > 2_000_000) return { error: "That file is too big. Split it into files under 2 MB." };
+  const rows = parseCsv(text);
+  if (rows.length < 2) return { error: "The CSV needs a header row and at least one product." };
+  const head = rows[0].map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
+  const col = (r: string[], k: string) => { const i = head.indexOf(k); return i >= 0 ? (r[i] ?? "").trim() : undefined; };
+  if (!head.includes("name") || !head.includes("price")) return { error: 'The header row must include "name" and "price" columns.' };
+  const { Instance, Plan } = platformModels(await platformDb());
+  const inst = await Instance.findById(store.id).lean();
+  const plan = inst ? await Plan.findById(inst.plan).lean() : null;
+  const max = inst?.limitOverrides?.maxProducts ?? plan?.maxProducts ?? 0;
+  let count = await m.Product.countDocuments();
+  let created = 0, updated = 0;
+  const errors: string[] = [];
+  for (const [n, r] of rows.slice(1, 2001).entries()) {
+    const name = col(r, "name");
+    const price = Number(col(r, "price"));
+    if (!name || !(price >= 0)) { errors.push(`Row ${n + 2}: needs a name and a price`); continue; }
+    const num = (k: string) => { const v = col(r, k); return v === undefined || v === "" ? undefined : Number(v); };
+    const doc: Record<string, unknown> = { name: name.slice(0, 200), price };
+    for (const [k, field] of [["compare_at_price", "compareAtPrice"], ["stock", "stock"], ["cost_price", "costPrice"], ["wholesale_price", "wholesalePrice"]] as const) {
+      const v = num(k); if (v !== undefined && v >= 0) doc[field] = field === "stock" ? Math.floor(v) : v;
+    }
+    for (const k of ["category", "brand", "sku", "barcode", "description"] as const) { const v = col(r, k); if (v !== undefined) doc[k] = v.slice(0, k === "description" ? 5000 : 80); }
+    const st = col(r, "status"); if (st === "active" || st === "draft") doc.status = st;
+    const imgs = col(r, "images"); if (imgs !== undefined) doc.images = imgs.split(/\s+/).filter((x) => /^https?:\/\/\S+$/i.test(x)).slice(0, 12);
+    const tags = col(r, "tags"); if (tags !== undefined) doc.tags = tags.split(/[;,]/).map((x) => x.trim().toLowerCase()).filter(Boolean).slice(0, 20);
+    const slugIn = col(r, "slug");
+    const sku = doc.sku as string | undefined;
+    const existing = slugIn ? await m.Product.findOne({ slug: slugIn.toLowerCase() }) : sku ? await m.Product.findOne({ sku }) : null;
+    if (existing) {
+      await m.Product.updateOne({ _id: existing._id }, { $set: doc });
+      updated++;
+      if (doc.stock !== undefined) await sendBackInStock(store, m, String(existing._id));
+    } else {
+      if (max > 0 && count >= max) { errors.push(`Row ${n + 2}: plan limit of ${max} products reached`); continue; }
+      let slug = slugify(slugIn || name);
+      if (await m.Product.exists({ slug })) slug = `${slug}-${Date.now().toString(36)}${n}`;
+      await m.Product.create({ ...doc, slug });
+      created++; count++;
+    }
+  }
+  if (rows.length > 2001) errors.push("Only the first 2,000 rows were imported.");
+  await audit(store, actorEmail(user), "product.import", undefined, undefined, { created, updated });
+  refresh(store);
+  const msg = `Imported: ${created} new, ${updated} updated.`;
+  return errors.length ? { error: `${msg} ${errors.length} problem(s): ${errors.slice(0, 5).join("; ")}${errors.length > 5 ? "…" : ""}` } : { ok: msg };
+}
+
+export async function bulkUpdate(site: string, _: MState, form: FormData): Promise<MState> {
+  const { store, user, m } = await ctx(site, "catalog");
+  if (!store.features["F-91"]) return { error: "Turn on bulk editing (F-91) first." };
+  let changed = 0;
+  const touched: string[] = [];
+  for (const [k, v] of form.entries()) {
+    const mt = k.match(/^(price|stock)_([a-f0-9]{24})(?:_([a-f0-9]{24}))?$/);
+    if (!mt || typeof v !== "string" || v.trim() === "") continue;
+    const val = Number(v);
+    if (!(val >= 0) || (mt[1] === "stock" && !Number.isInteger(val))) return { error: `Check the value "${v}".` };
+    const [, field, pid, vid] = mt;
+    const r = vid
+      ? await m.Product.updateOne({ _id: pid, "variants._id": new Types.ObjectId(vid) }, { $set: { [`variants.$.${field}`]: val } })
+      : await m.Product.updateOne({ _id: pid }, { $set: { [field]: val } });
+    if (r.modifiedCount) { changed++; if (field === "stock") touched.push(pid); }
+  }
+  // Percentage price change for all listed products, if given.
+  const pct = Number(form.get("percent") ?? 0);
+  if (pct && pct > -90 && pct < 500) {
+    const ids = String(form.get("ids") ?? "").split(",").filter((x) => Types.ObjectId.isValid(x));
+    const products = await m.Product.find({ _id: { $in: ids } }, { price: 1 }).lean();
+    for (const p of products) await m.Product.updateOne({ _id: p._id }, { $set: { price: Math.max(0, Math.round(p.price * (1 + pct / 100))) } });
+    changed += products.length;
+  }
+  for (const pid of new Set(touched)) await sendBackInStock(store, m, pid);
+  await audit(store, actorEmail(user), "product.bulk_update", undefined, undefined, changed);
+  refresh(store);
+  return { ok: `Saved ${changed} change(s).` };
+}
+
+// ---------- Product questions (F-65) ----------
+
+export async function answerQuestion(site: string, id: string, _: MState, form: FormData): Promise<MState> {
+  const { store, user, m } = await ctx(site, "catalog");
+  const answer = String(form.get("answer") ?? "").trim().slice(0, 2000);
+  if (!answer || !Types.ObjectId.isValid(id)) return { error: "Write an answer first." };
+  await m.Question.updateOne({ _id: id }, { $set: { answer, answeredBy: user.name, published: true } });
+  refresh(store);
+  return { ok: "Answer published." };
+}
+
+export async function deleteQuestion(site: string, id: string) {
+  const { store, m } = await ctx(site, "catalog");
+  if (Types.ObjectId.isValid(id)) await m.Question.deleteOne({ _id: id });
+  refresh(store);
+}
+
+// ---------- Returns and exchanges (F-46, F-100) ----------
+
+export async function decideReturn(site: string, id: string, decision: "approved" | "rejected" | "completed", form: FormData) {
+  const { store, user, m } = await ctx(site, "orders");
+  if (!Types.ObjectId.isValid(id)) return;
+  const r = await m.Return.findById(id);
+  if (!r) return;
+  const allowed: Record<string, string[]> = { requested: ["approved", "rejected"], approved: ["completed", "rejected"] };
+  if (!allowed[r.status]?.includes(decision)) return;
+  r.status = decision;
+  r.note = String(form.get("note") ?? "").trim().slice(0, 500) || r.note;
+  await r.save();
+  if (decision === "completed") {
+    const amount = r.items.reduce((n, i) => n + i.price * i.qty, 0);
+    if (store.features["F-17"]) await releaseStock(m, linesOf(r.items.map((i) => ({ ...i, name: i.name }))));
+    const o = await m.Order.findOne({ number: r.orderNumber });
+    if (r.type === "refund" && o) {
+      const already = o.refunds.reduce((n, x) => n + x.amount, 0);
+      const amt = Math.min(amount, o.total - already);
+      if (amt > 0) {
+        o.refunds.push({ amount: amt, reason: `Return: ${r.reason}`.slice(0, 200), by: user.name, at: new Date() });
+        o.paymentStatus = already + amt >= o.total ? "refunded" : "partially_refunded";
+        await o.save();
+      }
+    } else if (r.type === "credit") {
+      await m.User.updateOne({ _id: r.user }, { $inc: { storeCredit: amount }, $push: { creditHistory: { amount, reason: `Return on order #${r.orderNumber}`, at: new Date() } } });
+    }
+    if (o?.customer.email && store.features["F-41"])
+      await sendEmail(m, o.customer.email, `${store.name}: your return for order #${r.orderNumber} is complete`,
+        `<p>Hi ${esc(o.customer.name)}, your ${r.type} for order #${r.orderNumber} is complete.</p>`);
+  }
+  await audit(store, actorEmail(user), `return.${decision}`, `#${r.orderNumber}`);
+  refresh(store);
+}
+
+// ---------- Support tickets (F-73) ----------
+
+export async function staffReply(site: string, id: string, _: MState, form: FormData): Promise<MState> {
+  const { store, user, m } = await ctx(site, "customers");
+  const text = String(form.get("text") ?? "").trim().slice(0, 4000);
+  if (!text || !Types.ObjectId.isValid(id)) return { error: "Write a reply first." };
+  const close = form.get("close") === "1";
+  const t = await m.Ticket.findByIdAndUpdate(id, { $push: { messages: { from: "staff", name: user.name, text, at: new Date() } }, $set: { status: close ? "closed" : "open" } }, { returnDocument: "after" }).lean();
+  if (t?.email && store.features["F-41"])
+    await sendEmail(m, t.email, `${store.name}: reply to “${t.subject}”`, `<p>${esc(text).replace(/\n/g, "<br>")}</p><p>— ${esc(user.name)}, ${esc(store.name)}</p>`);
+  refresh(store);
+  return { ok: close ? "Reply sent and ticket closed." : "Reply sent." };
+}
+
+export async function setTicketStatus(site: string, id: string, status: "open" | "closed") {
+  const { store, m } = await ctx(site, "customers");
+  if (Types.ObjectId.isValid(id)) await m.Ticket.updateOne({ _id: id }, { $set: { status } });
+  refresh(store);
+}
+
+// ---------- Customers: store credit (F-56), wholesale (F-61) ----------
+
+export async function adjustCredit(site: string, userId: string, _: MState, form: FormData): Promise<MState> {
+  const { store, user, m } = await ctx(site, "customers");
+  if (!store.features["F-56"]) return { error: "Turn on store credit (F-56) first." };
+  const amount = Math.round(Number(form.get("amount")));
+  const reason = String(form.get("reason") ?? "").trim().slice(0, 120) || "Adjusted by store";
+  if (!amount || !Types.ObjectId.isValid(userId)) return { error: "Enter an amount (negative to remove credit)." };
+  const u = await m.User.findOne({ _id: userId, role: "customer" });
+  if (!u) return { error: "Customer not found." };
+  if (u.storeCredit + amount < 0) return { error: `They only have ${formatMoney(u.storeCredit, store.currency)} credit.` };
+  u.storeCredit += amount;
+  u.creditHistory.push({ amount, reason, at: new Date() });
+  await u.save();
+  await audit(store, actorEmail(user), "customer.credit", u.email, undefined, amount);
+  refresh(store);
+  return { ok: `Credit is now ${formatMoney(u.storeCredit, store.currency)}.` };
+}
+
+export async function setWholesale(site: string, userId: string, on: boolean) {
+  const { store, user, m } = await ctx(site, "customers");
+  if (!store.features["F-61"] || !Types.ObjectId.isValid(userId)) return;
+  const u = await m.User.findOneAndUpdate({ _id: userId, role: "customer" }, { $set: { wholesale: on } }).lean();
+  if (u) await audit(store, actorEmail(user), on ? "customer.wholesale_on" : "customer.wholesale_off", u.email);
   refresh(store);
 }

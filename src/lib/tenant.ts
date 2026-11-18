@@ -37,6 +37,20 @@ const DEFAULT_SETTINGS: StoreSettings = {
   seoTitle: "",
   seoDescription: "",
   lowStockAt: 5,
+  giftWrapFee: 150,
+  deliverySlots: ["Morning (9am–12pm)", "Afternoon (12pm–4pm)", "Evening (4pm–8pm)"],
+  ntn: "",
+  gstNumber: "",
+  gaId: "",
+  pixelId: "",
+  pointsPer: 100,
+  pointValue: 1,
+  referralReward: 200,
+  refundApprovalAbove: 10000,
+  exitOfferCode: "",
+  customCss: "",
+  menu: [],
+  locations: [],
 };
 
 /** Resolve an instance by subdomain, or by custom domain when `site` contains a dot. Cached per request. */

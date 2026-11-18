@@ -4,9 +4,12 @@ import { redirect } from "next/navigation";
 import { storeModels, type StoreContext } from "./tenant";
 import type { StoreRole } from "./models/tenant";
 import { LOCK_AFTER, LOCK_MINUTES, createStoreSession } from "./store-auth";
+import { verifyTotp } from "./totp";
+
+export type LoginResult = { error?: string; needCode?: boolean } | undefined;
 
 /** Shared sign-in with lockout after repeated failures (F-121). */
-export async function loginAs(s: StoreContext, form: FormData, roles: StoreRole[], to: string): Promise<{ error?: string } | undefined> {
+export async function loginAs(s: StoreContext, form: FormData, roles: StoreRole[], to: string): Promise<LoginResult> {
   const email = String(form.get("email") ?? "").toLowerCase().trim();
   const password = String(form.get("password") ?? "");
   const m = await storeModels(s);
@@ -25,6 +28,12 @@ export async function loginAs(s: StoreContext, form: FormData, roles: StoreRole[
       await u.save();
     }
     return { error: "Email or password is incorrect." };
+  }
+  // F-69: customers who turned on two-factor must also give a current code.
+  if (u.role === "customer" && s.features["F-69"] && u.totpEnabled && u.totpSecret) {
+    const code = String(form.get("code") ?? "");
+    if (!code) return { error: "Enter the 6-digit code from your authenticator app.", needCode: true };
+    if (!verifyTotp(u.totpSecret, code, u.email)) return { error: "That code didn't match. Enter the newest code.", needCode: true };
   }
   u.failedLogins = 0;
   u.lockUntil = undefined;

@@ -37,17 +37,44 @@ export function OwnerSetupForm({ site, token }: { site: string; token: string })
 type P = {
   id?: string; name?: string; price?: number; compareAtPrice?: number; stock?: number; category?: string; brand?: string;
   sku?: string; barcode?: string; images?: string[]; description?: string; status?: string;
+  optionNames?: string[]; variants?: { name: string; price?: number; stock: number; sku: string; barcode: string }[];
+  tags?: string[]; publishAt?: string; warrantyMonths?: number; sizeGuide?: string; volumeTiers?: { minQty: number; price: number }[];
+  salePrice?: number; saleEndsAt?: string; costPrice?: number; wholesalePrice?: number;
 };
 
-export function ProductEditor({ site, product, categories }: { site: string; product?: P; categories: string[] }) {
-  const [s, a, p] = useActionState<MState, FormData>(saveProduct.bind(null, site, product?.id ?? null), undefined);
+/** Value for <input type="datetime-local"> in Pakistan time. */
+export const toLocalInput = (d?: string | Date | null) => {
+  if (!d) return "";
+  const t = new Date(new Date(d).getTime() + 5 * 3600_000); // Asia/Karachi is UTC+5 all year
+  return t.toISOString().slice(0, 16);
+};
+
+function Section({ title, children, open }: { title: string; children: React.ReactNode; open?: boolean }) {
   return (
-    <KeepForm action={a} className="space-y-4">
+    <details open={open} className="rounded-xl border border-slate-200 p-4 [&_summary]:cursor-pointer">
+      <summary className="text-sm font-semibold text-slate-800">{title}</summary>
+      <div className="mt-3 space-y-3">{children}</div>
+    </details>
+  );
+}
+
+export function ProductEditor({ site, product, categories, features = {} }: { site: string; product?: P; categories: string[]; features?: Record<string, boolean> }) {
+  const [s, a, p] = useActionState<MState, FormData>(saveProduct.bind(null, site, product?.id ?? null), undefined);
+  const f = features;
+  // datetime-local is in the browser's zone; convert Pakistan-time text back to UTC on submit.
+  const pk = (v: string) => (v ? new Date(`${v}:00+05:00`).toISOString() : "");
+  const submit = (fd: FormData) => {
+    for (const k of ["publishAt", "saleEndsAt"]) fd.set(k, pk(String(fd.get(k) ?? "")));
+    a(fd);
+  };
+  const variantText = (product?.variants ?? []).map((v) => [v.name, v.price ?? "", v.stock, v.sku, v.barcode].join(" | ")).join("\n");
+  return (
+    <KeepForm action={submit} className="space-y-4">
       <Field label="Product name"><input name="name" required defaultValue={product?.name} className={tealInput} /></Field>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label="Price"><input name="price" type="number" min="0" required defaultValue={product?.price} className={tealInput} /></Field>
         <Field label="Compare-at price" hint="Shows a sale badge when higher."><input name="compareAtPrice" type="number" min="0" defaultValue={product?.compareAtPrice ?? ""} className={tealInput} /></Field>
-        <Field label="Stock"><input name="stock" type="number" min="0" step="1" defaultValue={product?.stock ?? 0} className={tealInput} /></Field>
+        <Field label="Stock" hint={f["F-02"] ? "Ignored when the product has variants." : undefined}><input name="stock" type="number" min="0" step="1" defaultValue={product?.stock ?? 0} className={tealInput} /></Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Category">
@@ -62,6 +89,44 @@ export function ProductEditor({ site, product, categories }: { site: string; pro
         <textarea name="images" rows={3} defaultValue={product?.images?.join("\n")} className={`${tealInput} font-mono text-xs`} placeholder="https://…" />
       </Field>
       <Field label="Description"><textarea name="description" rows={5} defaultValue={product?.description} className={tealInput} /></Field>
+
+      {f["F-02"] && (
+        <Section title="🎨 Variants (sizes, colors)" open={!!product?.variants?.length}>
+          <Field label="Option names" hint='Separate with "/", e.g. Color / Size.'><input name="optionNames" defaultValue={product?.optionNames?.join(" / ")} className={tealInput} placeholder="Color / Size" /></Field>
+          <Field label="Variants" hint="One per line: name | price (blank = product price) | stock | SKU | barcode">
+            <textarea name="variants" rows={5} defaultValue={variantText} className={`${tealInput} font-mono text-xs`} placeholder={"Red / M | | 10 | TS-RED-M | 1001\nRed / L | 1600 | 4 | TS-RED-L | 1002"} />
+          </Field>
+        </Section>
+      )}
+      {(f["F-62"] || f["F-66"] || f["F-61"] || f["F-82"]) && (
+        <Section title="💰 Pricing rules" open={!!(product?.salePrice || product?.volumeTiers?.length)}>
+          {f["F-66"] && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Flash sale price"><input name="salePrice" type="number" min="0" defaultValue={product?.salePrice ?? ""} className={tealInput} /></Field>
+              <Field label="Sale ends (Pakistan time)" hint="A countdown shows on the product page."><input name="saleEndsAt" type="datetime-local" defaultValue={toLocalInput(product?.saleEndsAt)} className={tealInput} /></Field>
+            </div>
+          )}
+          {f["F-62"] && (
+            <Field label="Volume prices" hint='One per line: "10 = 900" means 900 each when buying 10 or more.'>
+              <textarea name="volumeTiers" rows={2} defaultValue={(product?.volumeTiers ?? []).map((t) => `${t.minQty} = ${t.price}`).join("\n")} className={`${tealInput} font-mono text-xs`} />
+            </Field>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {f["F-61"] && <Field label="Wholesale price" hint="For customers marked as wholesale."><input name="wholesalePrice" type="number" min="0" defaultValue={product?.wholesalePrice ?? ""} className={tealInput} /></Field>}
+            {f["F-82"] && <Field label="Cost price" hint="Used for profit reports. Customers never see it."><input name="costPrice" type="number" min="0" defaultValue={product?.costPrice ?? 0} className={tealInput} /></Field>}
+          </div>
+        </Section>
+      )}
+      {(f["F-93"] || f["F-92"] || f["F-111"] || f["F-64"]) && (
+        <Section title="🧾 More details" open={!!(product?.tags?.length || product?.sizeGuide)}>
+          {f["F-93"] && <Field label="Tags" hint="Comma separated, e.g. summer, cotton, new"><input name="tags" defaultValue={product?.tags?.join(", ")} className={tealInput} /></Field>}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {f["F-92"] && <Field label="Publish at (Pakistan time)" hint="Hidden from the store until then. Leave empty to publish now."><input name="publishAt" type="datetime-local" defaultValue={toLocalInput(product?.publishAt)} className={tealInput} /></Field>}
+            {f["F-111"] && <Field label="Warranty (months)" hint="0 = no warranty"><input name="warrantyMonths" type="number" min="0" max="240" defaultValue={product?.warrantyMonths ?? 0} className={tealInput} /></Field>}
+          </div>
+          {f["F-64"] && <Field label="Size guide" hint="Plain text. Use one line per size, e.g. S: chest 36in."><textarea name="sizeGuide" rows={4} defaultValue={product?.sizeGuide} className={tealInput} /></Field>}
+        </Section>
+      )}
       <Field label="Visibility">
         <select name="status" defaultValue={product?.status ?? "active"} className={tealInput}>
           <option value="active">Active — shown in the store</option>

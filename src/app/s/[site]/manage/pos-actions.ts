@@ -7,6 +7,9 @@ import { revalidatePath } from "next/cache";
 import { getStore, storeModels, formatMoney } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { nextOrderNumber } from "@/lib/models/tenant";
+import { findVariant, unitPrice } from "@/lib/pricing";
+import { linesOf, reserveStock } from "@/lib/stock";
+import { fireWebhook } from "@/lib/webhooks";
 
 export type PosResult = { error?: string; ok?: string; number?: number; needsPin?: boolean; report?: ShiftReport };
 export type ShiftReport = { openingCash: number; cashSales: number; cashRefunds: number; expected: number; counted: number; difference: number };
@@ -54,33 +57,39 @@ export async function closeShift(site: string, _: PosResult | undefined, form: F
   };
 }
 
-export async function posSale(site: string, lines: { id: string; qty: number }[], tendered: number): Promise<PosResult> {
+export async function posSale(site: string, lines: { id: string; variant?: string; qty: number }[], tendered: number): Promise<PosResult> {
   const { store, user, m } = await ctx(site);
   const shift = store.features["F-36"] ? await openShiftOf(m, user._id) : null;
   if (store.features["F-36"] && !shift) return { error: "Open a shift before selling." };
-  const clean = lines.filter((l) => Types.ObjectId.isValid(l.id) && l.qty > 0).map((l) => ({ id: l.id, qty: Math.min(999, Math.floor(l.qty)) }));
+  const clean = lines
+    .filter((l) => Types.ObjectId.isValid(l.id) && l.qty > 0 && (!l.variant || Types.ObjectId.isValid(l.variant)))
+    .map((l) => ({ id: l.id, variant: l.variant, qty: Math.min(999, Math.floor(l.qty)) }));
   if (!clean.length) return { error: "The sale is empty." };
   const products = await m.Product.find({ _id: { $in: clean.map((l) => l.id) } }).lean();
   const byId = new Map(products.map((p) => [String(p._id), p]));
-  const items = clean.filter((l) => byId.has(l.id)).map((l) => {
-    const p = byId.get(l.id)!;
-    return { product: p._id, name: p.name, price: p.price, qty: l.qty };
-  });
+  const items = clean
+    .filter((l) => byId.has(l.id))
+    .map((l) => {
+      const p = byId.get(l.id)!;
+      const v = findVariant(p, l.variant);
+      return {
+        product: p._id,
+        variant: v ? new Types.ObjectId(String(v._id)) : undefined,
+        variantName: v?.name,
+        name: p.name,
+        price: unitPrice(p, v ? String(v._id) : undefined, l.qty, { features: store.features }).price,
+        qty: l.qty,
+        cost: p.costPrice ?? 0,
+      };
+    });
   const subtotal = items.reduce((n, i) => n + i.price * i.qty, 0);
   const tax = store.features["F-31"] ? Math.round((subtotal * store.settings.taxRate) / 100) : 0;
   const total = subtotal + tax;
   if (!(tendered >= total)) return { error: `Cash received must be at least ${formatMoney(total, store.currency)}.` };
 
-  const reserved: { id: Types.ObjectId; qty: number }[] = [];
   if (store.features["F-17"]) {
-    for (const it of items) {
-      const r = await m.Product.updateOne({ _id: it.product, stock: { $gte: it.qty } }, { $inc: { stock: -it.qty } });
-      if (r.modifiedCount !== 1) {
-        for (const x of reserved) await m.Product.updateOne({ _id: x.id }, { $inc: { stock: x.qty } });
-        return { error: `Not enough stock of ${it.name}.` };
-      }
-      reserved.push({ id: it.product, qty: it.qty });
-    }
+    const r = await reserveStock(m, linesOf(items));
+    if (r.short) return { error: `Not enough stock of ${r.short}.` };
   }
   const number = await nextOrderNumber(m);
   await m.Order.create({
@@ -96,6 +105,7 @@ export async function posSale(site: string, lines: { id: string; qty: number }[]
     shift.cashSales += total;
     await shift.save();
   }
+  await fireWebhook(store, "order.created", { number, total, channel: "pos" }).catch(() => {});
   revalidatePath(`/s/${store.subdomain}/manage/pos`);
   return { ok: `Sale #${number} complete. Change due: ${formatMoney(tendered - total, store.currency)}.`, number };
 }

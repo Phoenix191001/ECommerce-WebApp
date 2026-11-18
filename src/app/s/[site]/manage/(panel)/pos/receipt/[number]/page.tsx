@@ -21,8 +21,8 @@ export default async function Receipt({ params }: { params: Promise<{ site: stri
       <p className="mb-2 text-center">{new Date(o.createdAt!).toLocaleString("en-GB", { timeZone: "Asia/Karachi" })}</p>
       <hr className="border-dashed" />
       {o.items.map((i) => (
-        <div key={String(i.product)} className="my-1">
-          <p>{i.name}</p>
+        <div key={`${i.product}:${i.variant ?? ""}`} className="my-1">
+          <p>{i.name}{i.variantName ? ` (${i.variantName})` : ""}</p>
           <p className="flex justify-between"><span>{i.qty} × {fm(i.price)}</span><span>{fm(i.qty * i.price)}</span></p>
         </div>
       ))}

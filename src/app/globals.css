@@ -27,3 +27,18 @@ body {
 .btn-brand:active { transform: translateY(1px); }
 .btn-brand:disabled { opacity: .5; cursor: not-allowed; }
 .ring-brand:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 30%, transparent); border-color: var(--brand); }
+
+/* F-87 dark storefront theme: remaps the light palette used by store pages. */
+.store-dark { color-scheme: dark; background-color: #0b1120; color: #e2e8f0; }
+.store-dark .bg-white, .store-dark .bg-white\/90 { background-color: #111827 !important; }
+.store-dark .bg-slate-50 { background-color: #0b1120 !important; }
+.store-dark .bg-slate-100 { background-color: #1f2937 !important; }
+.store-dark .text-slate-900, .store-dark .text-slate-800 { color: #f1f5f9 !important; }
+.store-dark .text-slate-700, .store-dark .text-slate-600 { color: #cbd5e1 !important; }
+.store-dark .text-slate-500 { color: #94a3b8 !important; }
+.store-dark .border-slate-200, .store-dark .border-slate-300, .store-dark .divide-slate-100 > * { border-color: #334155 !important; }
+.store-dark input, .store-dark select, .store-dark textarea { background-color: #0f172a !important; color: #e2e8f0 !important; border-color: #334155 !important; }
+.store-dark .bg-brand-soft { background-color: color-mix(in srgb, var(--brand) 18%, #111827) !important; }
+
+/* Urdu: a Nastaliq-friendly stack, a bit more line height. */
+[lang="ur"] { font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", var(--font-geist-sans), sans-serif; line-height: 1.9; }

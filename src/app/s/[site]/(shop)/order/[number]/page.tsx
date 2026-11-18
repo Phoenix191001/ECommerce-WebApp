@@ -61,7 +61,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
 
         <ul className="mt-8 divide-y divide-slate-100 text-sm">
           {o.items.map((i) => (
-            <li key={String(i.product)} className="flex justify-between py-2"><span>{i.name} × {i.qty}</span><span>{fm(i.price * i.qty)}</span></li>
+            <li key={`${i.product}:${i.variant ?? ""}`} className="flex justify-between py-2"><span>{i.name}{i.variantName ? ` (${i.variantName})` : ""} × {i.qty}</span><span>{fm(i.price * i.qty)}</span></li>
           ))}
         </ul>
         <dl className="mt-3 space-y-1 border-t border-slate-200 pt-3 text-sm">
@@ -69,6 +69,9 @@ export default async function OrderPage({ params, searchParams }: Props) {
           {o.discount > 0 && <div className="flex justify-between text-emerald-700"><dt>Discount {o.discountCode && `(${o.discountCode})`}</dt><dd>−{fm(o.discount)}</dd></div>}
           <div className="flex justify-between"><dt>Delivery</dt><dd>{o.shipping ? fm(o.shipping) : "Free"}</dd></div>
           {o.tax > 0 && <div className="flex justify-between"><dt>Tax</dt><dd>{fm(o.tax)}</dd></div>}
+          {o.giftWrapFee > 0 && <div className="flex justify-between"><dt>🎁 Gift wrap</dt><dd>{fm(o.giftWrapFee)}</dd></div>}
+          {o.pointsDiscount > 0 && <div className="flex justify-between text-emerald-700"><dt>⭐ Points ({o.pointsRedeemed})</dt><dd>−{fm(o.pointsDiscount)}</dd></div>}
+          {o.creditUsed > 0 && <div className="flex justify-between text-emerald-700"><dt>💳 Store credit</dt><dd>−{fm(o.creditUsed)}</dd></div>}
           <div className="flex justify-between text-base font-bold"><dt>Total</dt><dd className="text-brand">{fm(o.total)}</dd></div>
         </dl>
         <div className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
@@ -76,12 +79,18 @@ export default async function OrderPage({ params, searchParams }: Props) {
             <p className="font-semibold">{o.delivery === "pickup" ? "Pickup" : "Delivery"}</p>
             <p className="text-slate-600">{o.customer.name} · {o.customer.phone}</p>
             {o.delivery === "pickup" ? <p className="text-slate-600">{store.settings.pickupAddress || "Collect from the shop"}</p> : <p className="text-slate-600">{o.customer.address}, {o.customer.city}</p>}
+            {o.deliverySlot && <p className="text-slate-600">🕒 {o.deliverySlot}</p>}
+            {o.giftWrap && <p className="text-slate-600">🎁 Gift wrapped{o.giftMessage ? `: “${o.giftMessage}”` : ""}</p>}
           </div>
           <div className="rounded-xl bg-slate-50 p-3">
             <p className="font-semibold">Payment</p>
             <p className="text-slate-600">{o.paymentMethod === "cod" ? "Cash on delivery" : o.paymentMethod === "cash" ? "Cash" : o.paymentMethod} · {o.paymentStatus.replace("_", " ")}</p>
           </div>
         </div>
+        {store.features["F-46"] && o.status === "delivered" && user?.role === "customer" && String(o.user) === String(user._id) && (
+          <p className="mt-6 text-sm"><Link href={`${b}/account/returns?order=${o.number}`} className="text-brand font-semibold underline">↩️ Return or exchange items</Link></p>
+        )}
+        {o.pointsEarned > 0 && <p className="mt-4 text-sm text-emerald-700">⭐ You earned {o.pointsEarned} loyalty points with this order.</p>}
         {isNew && t && (
           <p className="mt-6 text-xs text-slate-500">Bookmark this page to check your order later. You can also use “Track order” with #{o.number} and your email.</p>
         )}

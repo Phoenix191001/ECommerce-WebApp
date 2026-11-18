@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
+import { totalStock } from "@/lib/pricing";
 import { Badge, Card, btnTealCls } from "@/components/admin/ui";
 
 export const metadata = { title: "Products" };
@@ -23,6 +24,8 @@ export default async function Products({ params, searchParams }: { params: Promi
         <h1 className="text-2xl font-bold text-slate-900">Products</h1>
         <div className="flex gap-2">
           {f["F-50"] && <a href={`${b}/export/products`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">⬇️ Export CSV</a>}
+          {(f["F-90"] || f["F-91"]) && <Link href={`${b}/products/bulk`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">📑 Bulk edit / import</Link>}
+          {f["F-65"] && <Link href={`${b}/questions`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">❓ Questions</Link>}
           <Link href={`${b}/products/new`} className={btnTealCls}>➕ Add product</Link>
         </div>
       </div>
@@ -48,7 +51,7 @@ export default async function Products({ params, searchParams }: { params: Promi
                       </Link>
                     </td>
                     <td>{formatMoney(p.price, store.currency)}</td>
-                    {f["F-17"] && <td className={p.stock <= 0 ? "font-semibold text-rose-600" : p.stock <= store.settings.lowStockAt ? "text-amber-700" : ""}>{p.stock}</td>}
+                    {f["F-17"] && (() => { const st = totalStock(p); return <td className={st <= 0 ? "font-semibold text-rose-600" : st <= store.settings.lowStockAt ? "text-amber-700" : ""}>{st}{p.variants?.length ? <span className="ms-1 text-xs text-slate-400">({p.variants.length} variants)</span> : null}{p.publishAt && new Date(p.publishAt) > new Date() ? <span className="ms-1 text-xs text-sky-600">⏰ scheduled</span> : null}</td>; })()}
                     <td className="text-slate-600">{p.category || "—"}</td>
                     <td><Badge tone={p.status === "active" ? "green" : "slate"}>{p.status}</Badge></td>
                   </tr>

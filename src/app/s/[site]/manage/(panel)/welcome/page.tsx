@@ -63,7 +63,7 @@ export default async function Wizard({ params, searchParams }: { params: Promise
           ) : (
             <>
               <p className="mb-4 text-sm text-slate-600">Just a name and a price are enough to start. You can add photos with image links and fill in the rest later.</p>
-              <ProductEditor site={site} categories={categories} />
+              <ProductEditor site={site} categories={categories} features={store.features} />
             </>
           )}
         </Card>

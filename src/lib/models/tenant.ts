@@ -20,7 +20,28 @@ export interface Product {
   status: "draft" | "active";
   ratingAvg: number;
   ratingCount: number;
+  // F-02 variants: when present, price/stock come from the chosen variant
+  optionNames: string[];
+  variants: Variant[];
+  tags: string[]; // F-93
+  publishAt?: Date; // F-92
+  warrantyMonths: number; // F-111
+  sizeGuide: string; // F-64
+  volumeTiers: { minQty: number; price: number }[]; // F-62
+  salePrice?: number; // F-66
+  saleEndsAt?: Date;
+  costPrice: number; // F-82 profit reports
+  wholesalePrice?: number; // F-61
   createdAt?: Date;
+}
+
+export interface Variant {
+  _id: Types.ObjectId;
+  name: string; // e.g. "Red / M"
+  price?: number;
+  stock: number;
+  sku: string;
+  barcode: string;
 }
 
 export interface User {
@@ -36,15 +57,28 @@ export interface User {
   setupTokenExpires?: Date;
   failedLogins: number;
   lockUntil?: Date;
-  addresses: { label: string; address: string; city: string; phone: string }[];
+  addresses: { _id?: Types.ObjectId; label: string; address: string; city: string; phone: string }[];
+  loyaltyPoints: number; // F-28
+  storeCredit: number; // F-56
+  creditHistory: { amount: number; reason: string; at: Date }[];
+  wholesale: boolean; // F-61
+  referralCode?: string; // F-70
+  referredBy?: Types.ObjectId;
+  referralRewarded: boolean;
+  totpSecret?: string; // F-69
+  totpEnabled: boolean;
+  newsletter: boolean; // F-44
   createdAt?: Date;
 }
 
 export interface LineItem {
   product: Types.ObjectId;
+  variant?: Types.ObjectId;
+  variantName?: string;
   name: string;
   price: number;
   qty: number;
+  cost?: number;
 }
 
 export interface Cart {
@@ -78,6 +112,18 @@ export interface Order {
   refunds: { amount: number; reason: string; by: string; approvedBy?: string; at: Date }[];
   trackingToken: string;
   note: string;
+  giftWrap: boolean; // F-74
+  giftMessage: string;
+  giftWrapFee: number;
+  deliverySlot: string; // F-60
+  pointsRedeemed: number; // F-28
+  pointsDiscount: number;
+  pointsEarned: number;
+  creditUsed: number; // F-56
+  riskScore: number; // F-106
+  riskReasons: string[];
+  pendingRefunds: { _id?: Types.ObjectId; amount: number; reason: string; requestedBy: string; at: Date }[]; // F-105
+  editedAt?: Date; // F-98
   createdAt?: Date;
 }
 
@@ -124,6 +170,9 @@ export interface Outbox {
 const lineItem = new Schema<LineItem>(
   {
     product: { type: Schema.Types.ObjectId, required: true },
+    variant: Schema.Types.ObjectId,
+    variantName: String,
+    cost: Number,
     name: { type: String, required: true },
     price: { type: Number, required: true, min: 0 },
     qty: { type: Number, required: true, min: 1, max: 999 },
@@ -147,6 +196,20 @@ const productSchema = new Schema<Product>(
     status: { type: String, enum: ["draft", "active"], default: "active" },
     ratingAvg: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
+    optionNames: { type: [String], default: [] },
+    variants: {
+      type: [{ name: { type: String, required: true }, price: Number, stock: { type: Number, default: 0 }, sku: { type: String, default: "" }, barcode: { type: String, default: "" } }],
+      default: [],
+    },
+    tags: { type: [String], default: [], index: true },
+    publishAt: Date,
+    warrantyMonths: { type: Number, default: 0, min: 0 },
+    sizeGuide: { type: String, default: "", maxlength: 5000 },
+    volumeTiers: { type: [{ _id: false, minQty: { type: Number, min: 2 }, price: { type: Number, min: 0 } }], default: [] },
+    salePrice: { type: Number, min: 0 },
+    saleEndsAt: Date,
+    costPrice: { type: Number, default: 0, min: 0 },
+    wholesalePrice: { type: Number, min: 0 },
   },
   { timestamps: true },
 );
@@ -169,6 +232,16 @@ const userSchema = new Schema<User>(
       type: [{ label: String, address: String, city: String, phone: String }],
       default: [],
     },
+    loyaltyPoints: { type: Number, default: 0 },
+    storeCredit: { type: Number, default: 0 },
+    creditHistory: { type: [{ _id: false, amount: Number, reason: String, at: Date }], default: [] },
+    wholesale: { type: Boolean, default: false },
+    referralCode: { type: String, sparse: true, unique: true, uppercase: true },
+    referredBy: Schema.Types.ObjectId,
+    referralRewarded: { type: Boolean, default: false },
+    totpSecret: String,
+    totpEnabled: { type: Boolean, default: false },
+    newsletter: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
@@ -216,6 +289,18 @@ const orderSchema = new Schema<Order>(
     refunds: { type: [{ amount: Number, reason: String, by: String, approvedBy: String, at: Date }], default: [] },
     trackingToken: { type: String, required: true },
     note: { type: String, default: "" },
+    giftWrap: { type: Boolean, default: false },
+    giftMessage: { type: String, default: "" },
+    giftWrapFee: { type: Number, default: 0 },
+    deliverySlot: { type: String, default: "" },
+    pointsRedeemed: { type: Number, default: 0 },
+    pointsDiscount: { type: Number, default: 0 },
+    pointsEarned: { type: Number, default: 0 },
+    creditUsed: { type: Number, default: 0 },
+    riskScore: { type: Number, default: 0 },
+    riskReasons: { type: [String], default: [] },
+    pendingRefunds: { type: [{ amount: Number, reason: String, requestedBy: String, at: Date }], default: [] },
+    editedAt: Date,
   },
   { timestamps: true },
 );
@@ -271,6 +356,204 @@ const outboxSchema = new Schema<Outbox>(
   { timestamps: true },
 );
 
+export interface ReturnRequest {
+  orderNumber: number;
+  user: Types.ObjectId;
+  customerName: string;
+  items: { product: Types.ObjectId; variant?: Types.ObjectId; name: string; qty: number; price: number }[];
+  type: "refund" | "exchange" | "credit"; // F-46, F-100
+  reason: string;
+  status: "requested" | "approved" | "rejected" | "completed";
+  note: string;
+  createdAt?: Date;
+}
+
+export interface Ticket {
+  user: Types.ObjectId;
+  customerName: string;
+  email: string;
+  subject: string;
+  orderNumber?: number;
+  status: "open" | "closed";
+  messages: { from: "customer" | "staff"; name: string; text: string; at: Date }[];
+  updatedAt?: Date;
+  createdAt?: Date;
+}
+
+export interface Question {
+  product: Types.ObjectId;
+  productName: string;
+  name: string;
+  question: string;
+  answer: string;
+  answeredBy: string;
+  published: boolean;
+  createdAt?: Date;
+}
+
+export interface StockAlert {
+  product: Types.ObjectId;
+  variant?: Types.ObjectId;
+  email: string;
+  notified: boolean;
+  createdAt?: Date;
+}
+
+export interface Subscriber {
+  email: string;
+  createdAt?: Date;
+}
+
+export interface Page {
+  kind: "page" | "post";
+  title: string;
+  slug: string;
+  body: string;
+  excerpt: string;
+  published: boolean;
+  createdAt?: Date;
+}
+
+export interface Expense {
+  date: Date;
+  category: string;
+  amount: number;
+  note: string;
+}
+
+export interface Attendance {
+  staff: Types.ObjectId;
+  name: string;
+  clockIn: Date;
+  clockOut?: Date;
+}
+
+export interface ApiKey {
+  name: string;
+  prefix: string;
+  hash: string;
+  lastUsedAt?: Date;
+  createdAt?: Date;
+}
+
+export interface Webhook {
+  url: string;
+  events: string[];
+  secret: string;
+  active: boolean;
+  lastStatus?: string;
+  lastAt?: Date;
+}
+
+const returnSchema = new Schema<ReturnRequest>(
+  {
+    orderNumber: { type: Number, required: true, index: true },
+    user: { type: Schema.Types.ObjectId, required: true, index: true },
+    customerName: { type: String, default: "" },
+    items: { type: [{ _id: false, product: Schema.Types.ObjectId, variant: Schema.Types.ObjectId, name: String, qty: Number, price: Number }], default: [] },
+    type: { type: String, enum: ["refund", "exchange", "credit"], required: true },
+    reason: { type: String, default: "", maxlength: 1000 },
+    status: { type: String, enum: ["requested", "approved", "rejected", "completed"], default: "requested", index: true },
+    note: { type: String, default: "" },
+  },
+  { timestamps: true },
+);
+
+const ticketSchema = new Schema<Ticket>(
+  {
+    user: { type: Schema.Types.ObjectId, required: true, index: true },
+    customerName: String,
+    email: String,
+    subject: { type: String, required: true, maxlength: 200 },
+    orderNumber: Number,
+    status: { type: String, enum: ["open", "closed"], default: "open", index: true },
+    messages: { type: [{ _id: false, from: String, name: String, text: { type: String, maxlength: 4000 }, at: Date }], default: [] },
+  },
+  { timestamps: true },
+);
+
+const questionSchema = new Schema<Question>(
+  {
+    product: { type: Schema.Types.ObjectId, required: true, index: true },
+    productName: String,
+    name: { type: String, required: true, maxlength: 80 },
+    question: { type: String, required: true, maxlength: 1000 },
+    answer: { type: String, default: "" },
+    answeredBy: { type: String, default: "" },
+    published: { type: Boolean, default: false },
+  },
+  { timestamps: true },
+);
+
+const stockAlertSchema = new Schema<StockAlert>(
+  {
+    product: { type: Schema.Types.ObjectId, required: true, index: true },
+    variant: Schema.Types.ObjectId,
+    email: { type: String, required: true, lowercase: true, trim: true },
+    notified: { type: Boolean, default: false },
+  },
+  { timestamps: true },
+);
+
+const subscriberSchema = new Schema<Subscriber>(
+  { email: { type: String, required: true, unique: true, lowercase: true, trim: true } },
+  { timestamps: true },
+);
+
+const pageSchema = new Schema<Page>(
+  {
+    kind: { type: String, enum: ["page", "post"], required: true },
+    title: { type: String, required: true, maxlength: 200 },
+    slug: { type: String, required: true, unique: true, lowercase: true },
+    body: { type: String, default: "", maxlength: 50000 },
+    excerpt: { type: String, default: "", maxlength: 300 },
+    published: { type: Boolean, default: true },
+  },
+  { timestamps: true },
+);
+
+const expenseSchema = new Schema<Expense>(
+  {
+    date: { type: Date, required: true, index: true },
+    category: { type: String, default: "Other" },
+    amount: { type: Number, required: true, min: 0 },
+    note: { type: String, default: "" },
+  },
+  { timestamps: true },
+);
+
+const attendanceSchema = new Schema<Attendance>(
+  {
+    staff: { type: Schema.Types.ObjectId, required: true, index: true },
+    name: String,
+    clockIn: { type: Date, required: true },
+    clockOut: Date,
+  },
+  { timestamps: true },
+);
+
+const apiKeySchema = new Schema<ApiKey>(
+  {
+    name: { type: String, required: true },
+    prefix: { type: String, required: true },
+    hash: { type: String, required: true, unique: true },
+    lastUsedAt: Date,
+  },
+  { timestamps: true },
+);
+
+const webhookSchema = new Schema<Webhook>(
+  {
+    url: { type: String, required: true },
+    events: { type: [String], default: [] },
+    secret: { type: String, required: true },
+    active: { type: Boolean, default: true },
+    lastStatus: String,
+    lastAt: Date,
+  },
+  { timestamps: true },
+);
+
 const counterSchema = new Schema<{ _id: string; seq: number }>({ _id: String, seq: Number });
 
 function model<T>(conn: Connection, name: string, schema: Schema<T>): Model<T> {
@@ -288,6 +571,16 @@ export function tenantModels(conn: Connection) {
     Shift: model<Shift>(conn, "Shift", shiftSchema),
     Outbox: model<Outbox>(conn, "Outbox", outboxSchema),
     Counter: model<{ _id: string; seq: number }>(conn, "Counter", counterSchema),
+    Return: model<ReturnRequest>(conn, "Return", returnSchema),
+    Ticket: model<Ticket>(conn, "Ticket", ticketSchema),
+    Question: model<Question>(conn, "Question", questionSchema),
+    StockAlert: model<StockAlert>(conn, "StockAlert", stockAlertSchema),
+    Subscriber: model<Subscriber>(conn, "Subscriber", subscriberSchema),
+    Page: model<Page>(conn, "Page", pageSchema),
+    Expense: model<Expense>(conn, "Expense", expenseSchema),
+    Attendance: model<Attendance>(conn, "Attendance", attendanceSchema),
+    ApiKey: model<ApiKey>(conn, "ApiKey", apiKeySchema),
+    Webhook: model<Webhook>(conn, "Webhook", webhookSchema),
   };
 }
 

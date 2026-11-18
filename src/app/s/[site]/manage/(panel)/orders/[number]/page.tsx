@@ -46,13 +46,16 @@ export default async function OrderDetail({ params }: { params: Promise<{ site: 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <Card title="Items" accent="emerald">
           <ul className="divide-y divide-slate-100 text-sm">
-            {o.items.map((i) => <li key={String(i.product)} className="flex justify-between py-2"><span>{i.name} × {i.qty}</span><span>{fm(i.price * i.qty)}</span></li>)}
+            {o.items.map((i) => <li key={`${i.product}:${i.variant ?? ""}`} className="flex justify-between py-2"><span>{i.name}{i.variantName ? ` (${i.variantName})` : ""} × {i.qty}</span><span>{fm(i.price * i.qty)}</span></li>)}
           </ul>
           <dl className="mt-3 space-y-1 border-t border-slate-200 pt-3 text-sm">
             <div className="flex justify-between"><dt>Subtotal</dt><dd>{fm(o.subtotal)}</dd></div>
             {o.discount > 0 && <div className="flex justify-between text-emerald-700"><dt>Discount {o.discountCode}</dt><dd>−{fm(o.discount)}</dd></div>}
             <div className="flex justify-between"><dt>Delivery</dt><dd>{fm(o.shipping)}</dd></div>
             {o.tax > 0 && <div className="flex justify-between"><dt>Tax</dt><dd>{fm(o.tax)}</dd></div>}
+            {o.giftWrapFee > 0 && <div className="flex justify-between"><dt>🎁 Gift wrap</dt><dd>{fm(o.giftWrapFee)}</dd></div>}
+            {o.pointsDiscount > 0 && <div className="flex justify-between text-emerald-700"><dt>⭐ Points ({o.pointsRedeemed})</dt><dd>−{fm(o.pointsDiscount)}</dd></div>}
+            {o.creditUsed > 0 && <div className="flex justify-between text-emerald-700"><dt>💳 Store credit</dt><dd>−{fm(o.creditUsed)}</dd></div>}
             <div className="flex justify-between text-base font-bold"><dt>Total</dt><dd>{fm(o.total)}</dd></div>
             {refunded > 0 && <div className="flex justify-between text-rose-600"><dt>Refunded</dt><dd>−{fm(refunded)}</dd></div>}
           </dl>

@@ -4,6 +4,8 @@ import { formatMoney, priceOrder, requireStore } from "@/lib/tenant";
 import { evaluateDiscount, viewCart } from "@/lib/cart";
 import { getCurrentUser } from "@/lib/store-auth";
 import { CheckoutForm } from "@/components/store/forms";
+import { ExitIntent } from "@/components/store/extras";
+import { storePrefs } from "@/lib/store-prefs";
 
 export const metadata = { title: "Checkout" };
 
@@ -16,6 +18,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ site:
   if (!cart.items.length) redirect(`${b}/cart`);
   const user = await getCurrentUser(store);
   const customer = user?.role === "customer" ? user : null;
+  const { t } = await storePrefs(store);
 
   if (!customer && !f["F-19"]) {
     return (
@@ -42,7 +45,8 @@ export default async function CheckoutPage({ params }: { params: Promise<{ site:
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-6 text-3xl font-bold">Checkout</h1>
+      {f["F-119"] && f["F-27"] && /^[A-Z0-9_-]{3,30}$/.test(store.settings.exitOfferCode) && <ExitIntent code={store.settings.exitOfferCode} L={t} />}
+      <h1 className="mb-6 text-3xl font-bold">{t.checkout}</h1>
       <div className="grid gap-6 md:grid-cols-[3fr_2fr]">
         <div className="rounded-2xl bg-white p-6 shadow-sm">
           {!customer && f["F-22"] && (
@@ -60,6 +64,12 @@ export default async function CheckoutPage({ params }: { params: Promise<{ site:
               pickupAddress={store.settings.pickupAddress}
               methods={methods}
               totalLabel={fm(totals.total)}
+              addresses={f["F-107"] ? (customer?.addresses ?? []).map((a) => ({ label: a.label, address: a.address, city: a.city, phone: a.phone })) : []}
+              canSaveAddress={!!(customer && f["F-107"])}
+              slots={f["F-60"] && f["F-29"] ? store.settings.deliverySlots : []}
+              giftWrapFee={f["F-74"] ? fm(store.settings.giftWrapFee) : null}
+              points={customer && f["F-28"] && customer.loyaltyPoints > 0 ? { balance: customer.loyaltyPoints, worth: fm(Math.floor(customer.loyaltyPoints * store.settings.pointValue)) } : null}
+              credit={customer && f["F-56"] && customer.storeCredit > 0 ? { balance: fm(customer.storeCredit) } : null}
             />
           )}
         </div>

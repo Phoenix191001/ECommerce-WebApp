@@ -26,7 +26,15 @@ export default async function EditProduct({ params }: { params: Promise<{ site: 
         <ProductEditor
           site={site}
           categories={categories}
-          product={{ id, name: p.name, price: p.price, compareAtPrice: p.compareAtPrice, stock: p.stock, category: p.category, brand: p.brand, sku: p.sku, barcode: p.barcode, images: p.images, description: p.description, status: p.status }}
+          features={store.features}
+          product={{
+            id, name: p.name, price: p.price, compareAtPrice: p.compareAtPrice, stock: p.stock, category: p.category, brand: p.brand,
+            sku: p.sku, barcode: p.barcode, images: p.images, description: p.description, status: p.status,
+            optionNames: p.optionNames, variants: (p.variants ?? []).map((v) => ({ name: v.name, price: v.price ?? undefined, stock: v.stock, sku: v.sku, barcode: v.barcode })),
+            tags: p.tags, publishAt: p.publishAt?.toISOString(), warrantyMonths: p.warrantyMonths, sizeGuide: p.sizeGuide,
+            volumeTiers: (p.volumeTiers ?? []).map((t) => ({ minQty: t.minQty, price: t.price })), salePrice: p.salePrice ?? undefined,
+            saleEndsAt: p.saleEndsAt?.toISOString(), costPrice: p.costPrice, wholesalePrice: p.wholesalePrice ?? undefined,
+          }}
         />
       </Card>
       <Card accent="rose">
