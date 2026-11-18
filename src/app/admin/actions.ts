@@ -49,7 +49,7 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   const { SuperAdmin } = await models();
   const admin = await SuperAdmin.findOne({ email });
   if (admin?.lockUntil && admin.lockUntil > new Date())
-    return { error: `Too many failed attempts. Try again after ${admin.lockUntil.toLocaleTimeString("en-GB")}.` };
+    return { error: `Too many failed attempts. Try again after ${admin.lockUntil.toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi" })}.` };
   const ok = admin ? await bcrypt.compare(password, admin.passwordHash) : false;
   if (!admin || !ok) {
     if (admin) {

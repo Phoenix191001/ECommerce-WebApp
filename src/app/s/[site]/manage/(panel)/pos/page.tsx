@@ -33,7 +33,7 @@ export default async function PosPage({ params }: { params: Promise<{ site: stri
         <h1 className="text-2xl font-bold text-slate-900">💵 Point of sale</h1>
         {shift && (
           <div className="flex flex-wrap items-center gap-4 rounded-xl bg-white px-4 py-2 text-sm shadow-sm">
-            <span>Shift since {new Date(shift.openedAt).toLocaleTimeString("en-GB", { timeStyle: "short" })} · sales {formatMoney(shift.cashSales, store.currency)}</span>
+            <span>Shift since {new Date(shift.openedAt).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", timeStyle: "short" })} · sales {formatMoney(shift.cashSales, store.currency)}</span>
             <CloseShiftForm site={site} currency={store.currency} />
           </div>
         )}

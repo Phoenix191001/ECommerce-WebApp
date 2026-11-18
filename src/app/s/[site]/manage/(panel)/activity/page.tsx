@@ -29,7 +29,7 @@ export default async function Activity({ params }: { params: Promise<{ site: str
                   {e.target}
                   {typeof e.newValue === "boolean" && <span className="text-slate-500">{e.newValue ? "turned on" : "turned off"}</span>}
                 </span>
-                <span className="text-xs text-slate-500">{e.actorRole === "super_admin" ? "Platform admin" : e.actor} · {new Date(e.createdAt as Date).toLocaleString("en-GB")}</span>
+                <span className="text-xs text-slate-500">{e.actorRole === "super_admin" ? "Platform admin" : e.actor} · {new Date(e.createdAt as Date).toLocaleString("en-GB", { timeZone: "Asia/Karachi" })}</span>
               </li>
             ))}
           </ul>

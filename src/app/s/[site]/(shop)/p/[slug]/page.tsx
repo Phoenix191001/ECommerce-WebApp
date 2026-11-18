@@ -104,7 +104,7 @@ export default async function ProductPage({ params }: Props) {
                   <li key={String(r._id)} className="rounded-2xl bg-white p-4 shadow-sm">
                     <p className="text-amber-500">{"★".repeat(r.rating)}<span className="text-slate-300">{"★".repeat(5 - r.rating)}</span></p>
                     <p className="mt-1 text-sm text-slate-700">{r.text}</p>
-                    <p className="mt-2 text-xs text-slate-500">{r.name} · {new Date(r.createdAt!).toLocaleDateString("en-GB")}</p>
+                    <p className="mt-2 text-xs text-slate-500">{r.name} · {new Date(r.createdAt!).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })}</p>
                   </li>
                 ))}
               </ul>

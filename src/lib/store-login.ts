@@ -13,7 +13,7 @@ export async function loginAs(s: StoreContext, form: FormData, roles: StoreRole[
   const u = await m.User.findOne({ email, role: { $in: roles } });
   const lockOn = s.features["F-121"];
   if (lockOn && u?.lockUntil && u.lockUntil > new Date())
-    return { error: `Too many failed attempts. Try again after ${u.lockUntil.toLocaleTimeString("en-GB")}.` };
+    return { error: `Too many failed attempts. Try again after ${u.lockUntil.toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi" })}.` };
   const ok = u?.passwordHash ? await bcrypt.compare(password, u.passwordHash) : false;
   if (!u || !ok) {
     if (u && lockOn) {

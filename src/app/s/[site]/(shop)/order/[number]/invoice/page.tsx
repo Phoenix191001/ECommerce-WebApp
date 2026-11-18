@@ -24,7 +24,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
         <div className="text-right">
           <p className="text-xl font-bold">INVOICE</p>
           <p className="text-sm text-slate-600">#{o.number}</p>
-          <p className="text-sm text-slate-600">{new Date(o.createdAt!).toLocaleDateString("en-GB")}</p>
+          <p className="text-sm text-slate-600">{new Date(o.createdAt!).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })}</p>
         </div>
       </div>
       <div className="mb-6 text-sm">

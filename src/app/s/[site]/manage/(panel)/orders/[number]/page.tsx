@@ -32,7 +32,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ site: 
         <div>
           <Link href={`${store.base}/manage/orders`} className="text-sm text-slate-500 hover:underline">← Orders</Link>
           <h1 className="flex items-center gap-3 text-2xl font-bold text-slate-900">Order #{o.number} <Badge tone={STATUS_TONE[o.status]}>{STATUS_LABEL[o.status]}</Badge></h1>
-          <p className="text-sm text-slate-500">{new Date(o.createdAt!).toLocaleString("en-GB")} · {o.channel === "pos" ? "Point of sale" : "Online"}</p>
+          <p className="text-sm text-slate-500">{new Date(o.createdAt!).toLocaleString("en-GB", { timeZone: "Asia/Karachi" })} · {o.channel === "pos" ? "Point of sale" : "Online"}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {(ACTIONS[o.status] ?? []).map((a) => (
@@ -71,7 +71,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ site: 
           <Card title="Timeline" accent="violet">
             <ol className="space-y-2 border-l-2 border-emerald-200 pl-4 text-sm">
               {o.history.map((h, i) => (
-                <li key={i}><b>{STATUS_LABEL[h.status] ?? h.status}</b> <span className="text-xs text-slate-500">{new Date(h.at).toLocaleString("en-GB")}{h.by ? ` · ${h.by}` : ""}</span>{h.note && <p className="text-xs text-slate-600">{h.note}</p>}</li>
+                <li key={i}><b>{STATUS_LABEL[h.status] ?? h.status}</b> <span className="text-xs text-slate-500">{new Date(h.at).toLocaleString("en-GB", { timeZone: "Asia/Karachi" })}{h.by ? ` · ${h.by}` : ""}</span>{h.note && <p className="text-xs text-slate-600">{h.note}</p>}</li>
               ))}
             </ol>
           </Card>

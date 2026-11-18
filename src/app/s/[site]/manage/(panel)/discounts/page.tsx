@@ -24,7 +24,7 @@ export default async function Discounts({ params }: { params: Promise<{ site: st
                 <span>{d.type === "percent" ? `${d.value}% off` : `${formatMoney(d.value, store.currency)} off`}</span>
                 {d.minSubtotal > 0 && <span className="text-slate-500">over {formatMoney(d.minSubtotal, store.currency)}</span>}
                 <span className="text-slate-500">used {d.used}{d.usageLimit ? `/${d.usageLimit}` : ""}</span>
-                {d.expiresAt && <span className="text-slate-500">until {new Date(d.expiresAt).toLocaleDateString("en-GB")}</span>}
+                {d.expiresAt && <span className="text-slate-500">until {new Date(d.expiresAt).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })}</span>}
                 <Badge tone={d.active ? "green" : "slate"}>{d.active ? "active" : "paused"}</Badge>
                 <span className="ml-auto flex gap-2">
                   <form action={toggleDiscount.bind(null, site, String(d._id))}><button className="text-xs text-slate-600 hover:underline">{d.active ? "Pause" : "Resume"}</button></form>

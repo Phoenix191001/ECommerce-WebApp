@@ -191,7 +191,7 @@ export default async function InstancePage({
                   {e.target}{" "}
                   {e.oldValue !== undefined && e.oldValue !== null && <span className="text-slate-500">{String(e.oldValue)} → {String(e.newValue)}</span>}
                 </span>
-                <span className="text-xs text-slate-500">{e.actor} · {new Date(e.createdAt as Date).toLocaleString("en-GB")}</span>
+                <span className="text-xs text-slate-500">{e.actor} · {new Date(e.createdAt as Date).toLocaleString("en-GB", { timeZone: "Asia/Karachi" })}</span>
               </li>
             ))}
           </ul>
@@ -203,7 +203,7 @@ export default async function InstancePage({
           <div className="flex flex-wrap items-center gap-3">
             <a href={`/admin/instances/${id}/export`} className={btnSecondaryCls}>⬇️ Download data export (JSON)</a>
             <span className="text-xs text-slate-500">
-              {inst.exportedAt ? `Last export ${new Date(inst.exportedAt).toLocaleString("en-GB")}` : "Never exported"}
+              {inst.exportedAt ? `Last export ${new Date(inst.exportedAt).toLocaleString("en-GB", { timeZone: "Asia/Karachi" })}` : "Never exported"}
             </span>
           </div>
           <details>

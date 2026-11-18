@@ -32,7 +32,7 @@ export default async function Customers({ params }: { params: Promise<{ site: st
                     <td>{r.phone}</td>
                     <td>{r.orders}</td>
                     <td className="font-medium">{formatMoney(r.spent, store.currency)}</td>
-                    <td className="text-slate-600">{new Date(r.last).toLocaleDateString("en-GB")}</td>
+                    <td className="text-slate-600">{new Date(r.last).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })}</td>
                   </tr>
                 ))}
               </tbody>

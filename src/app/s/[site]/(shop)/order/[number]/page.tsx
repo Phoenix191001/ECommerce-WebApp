@@ -34,7 +34,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold">Order #{o.number}</h2>
-            <p className="text-sm text-slate-500">Placed {new Date(o.createdAt!).toLocaleString("en-GB")}</p>
+            <p className="text-sm text-slate-500">Placed {new Date(o.createdAt!).toLocaleString("en-GB", { timeZone: "Asia/Karachi" })}</p>
           </div>
           <div className="flex gap-2">
             {store.features["F-52"] && <Link href={`${b}/order/${o.number}/invoice${tq}`} className="rounded-xl border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">🧾 Invoice</Link>}

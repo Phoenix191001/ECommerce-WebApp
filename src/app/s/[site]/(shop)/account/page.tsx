@@ -37,7 +37,7 @@ export default async function AccountPage({ params }: { params: Promise<{ site: 
             {orders.map((o) => (
               <li key={o.number} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
                 <Link href={`${b}/order/${o.number}`} className="font-semibold hover:underline">#{o.number}</Link>
-                <span className="text-slate-500">{new Date(o.createdAt!).toLocaleDateString("en-GB")}</span>
+                <span className="text-slate-500">{new Date(o.createdAt!).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })}</span>
                 <span className="bg-brand-soft rounded-full px-2 py-0.5 text-xs font-medium">{STATUS_LABEL[o.status]}</span>
                 <span className="font-medium">{formatMoney(o.total, store.currency)}</span>
               </li>

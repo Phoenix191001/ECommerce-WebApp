@@ -51,7 +51,7 @@ export default async function ManageHome({ params }: { params: Promise<{ site: s
   const days = Array.from({ length: 14 }, (_, i) => {
     const d = new Date(day14.getTime() + i * 86400_000);
     const key = d.toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
-    return { key, label: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }), v: daily.find((x) => x._id === key)?.revenue ?? 0 };
+    return { key, label: d.toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", day: "numeric", month: "short" }), v: daily.find((x) => x._id === key)?.revenue ?? 0 };
   });
   const maxV = Math.max(1, ...days.map((d) => d.v));
 
@@ -92,7 +92,7 @@ export default async function ManageHome({ params }: { params: Promise<{ site: s
             <Stat label="Products" value={productCount} tone="amber" icon="📦" />
           </div>
           <Card title="Sales, last 14 days" accent="emerald">
-            <div className="flex h-40 items-end gap-1.5" role="img" aria-label="Daily sales for the last 14 days">
+            <div className="flex h-40 gap-1.5" role="img" aria-label="Daily sales for the last 14 days">
               {days.map((d) => (
                 <div key={d.key} className="group flex flex-1 flex-col items-center gap-1">
                   <div className="relative w-full flex-1">

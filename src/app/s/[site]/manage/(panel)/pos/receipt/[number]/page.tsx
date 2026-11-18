@@ -18,7 +18,7 @@ export default async function Receipt({ params }: { params: Promise<{ site: stri
     <div className="mx-auto max-w-[300px] bg-white p-4 font-mono text-xs">
       <p className="text-center text-sm font-bold">{store.name}</p>
       <p className="text-center">Receipt #{o.number}</p>
-      <p className="mb-2 text-center">{new Date(o.createdAt!).toLocaleString("en-GB")}</p>
+      <p className="mb-2 text-center">{new Date(o.createdAt!).toLocaleString("en-GB", { timeZone: "Asia/Karachi" })}</p>
       <hr className="border-dashed" />
       {o.items.map((i) => (
         <div key={String(i.product)} className="my-1">

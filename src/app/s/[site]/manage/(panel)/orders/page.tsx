@@ -49,7 +49,7 @@ export default async function Orders({ params, searchParams }: { params: Promise
                 {orders.map((o) => (
                   <tr key={o.number} className="hover:bg-slate-50">
                     <td className="py-2.5"><Link href={`${b}/orders/${o.number}`} className="font-semibold text-emerald-700 hover:underline">#{o.number}</Link></td>
-                    <td className="text-slate-600">{new Date(o.createdAt!).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })}</td>
+                    <td className="text-slate-600">{new Date(o.createdAt!).toLocaleString("en-GB", { timeZone: "Asia/Karachi", dateStyle: "short", timeStyle: "short" })}</td>
                     <td>{o.customer.name || "Walk-in"}</td>
                     <td><Badge tone={o.channel === "pos" ? "violet" : "sky"}>{o.channel === "pos" ? "POS" : "Online"}</Badge></td>
                     <td><Badge tone={STATUS_TONE[o.paymentStatus]}>{o.paymentStatus.replace("_", " ")}</Badge></td>
