@@ -11,17 +11,20 @@ import { platformModels } from "@/lib/models/platform";
 import { getStore, priceOrder, storeModels, formatMoney, type StoreContext } from "@/lib/tenant";
 import { createStoreSession, destroyStoreSession, requireStaff, type Permission } from "@/lib/store-auth";
 import { loginAs } from "@/lib/store-login";
+import { storeUrl, validateSubdomain } from "@/lib/subdomain";
+import { headers } from "next/headers";
 import { applyStarterPack, applyToggle, type ToggleResult } from "@/lib/toggles";
 import { esc, sendEmail } from "@/lib/email";
 import { addProjectDomain, domainsConfigured, removeProjectDomain } from "@/lib/vercel-domains";
 import type { OrderStatus } from "@/lib/models/tenant";
 import { linesOf, releaseStock, reserveStock } from "@/lib/stock";
 import { sendBackInStock } from "@/lib/stock-alerts";
-import { fireWebhook } from "@/lib/webhooks";
+import { WEBHOOK_EVENTS, fireWebhook, isSafeWebhookUrl } from "@/lib/webhooks";
 import { rewardDelivered } from "@/lib/rewards";
 import { parseCsv } from "@/lib/csv";
 
 export type MState = { error?: string; ok?: string } | undefined;
+export type SecretState = { error?: string; ok?: string; key?: string; secret?: string } | undefined;
 
 async function ctx(site: string, perm?: Permission) {
   const store = await getStore(site);
@@ -771,4 +774,136 @@ export async function setWholesale(site: string, userId: string, on: boolean) {
   const u = await m.User.findOneAndUpdate({ _id: userId, role: "customer" }, { $set: { wholesale: on } }).lean();
   if (u) await audit(store, actorEmail(user), on ? "customer.wholesale_on" : "customer.wholesale_off", u.email);
   refresh(store);
+}
+
+// ---------- Content pages and blog (F-40) ----------
+
+export async function savePage(site: string, id: string | null, _: MState, form: FormData): Promise<MState> {
+  const { store, user, m } = await ctx(site, "settings");
+  if (!store.features["F-40"]) return { error: "Turn on Blog and content pages (F-40) first." };
+  const title = String(form.get("title") ?? "").trim().slice(0, 200);
+  const kind: "post" | "page" = form.get("kind") === "post" ? "post" : "page";
+  if (title.length < 2) return { error: "Give it a title." };
+  const doc = {
+    title, kind,
+    body: String(form.get("body") ?? "").slice(0, 50000),
+    excerpt: String(form.get("excerpt") ?? "").trim().slice(0, 300),
+    published: form.get("published") === "1",
+  };
+  if (id) {
+    if (!Types.ObjectId.isValid(id)) return { error: "Unknown page." };
+    await m.Page.updateOne({ _id: id }, { $set: doc });
+  } else {
+    let slug = slugify(String(form.get("slug") ?? "") || title);
+    if (await m.Page.exists({ slug })) slug = `${slug}-${Date.now().toString(36)}`;
+    await m.Page.create({ ...doc, slug });
+  }
+  await audit(store, actorEmail(user), id ? "content.update" : "content.create", title);
+  refresh(store);
+  if (!id) redirect(`${store.base}/manage/content`);
+  return { ok: "Saved." };
+}
+
+export async function deletePage(site: string, id: string) {
+  const { store, m } = await ctx(site, "settings");
+  if (Types.ObjectId.isValid(id)) await m.Page.deleteOne({ _id: id });
+  refresh(store);
+  redirect(`${store.base}/manage/content`);
+}
+
+/** Storefront extras that live in settings but are edited on the Content page (F-117, F-88, F-115, F-76, F-119). */
+export async function saveStorefrontExtras(site: string, _: MState, form: FormData): Promise<MState> {
+  const { store, user } = await ctx(site, "settings");
+  const menu = String(form.get("menu") ?? "").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter(([l, u]) => l && u)
+    .map(([label, url]) => ({ label: label.slice(0, 40), url: url.slice(0, 300) }));
+  for (const mm of menu) if (!/^(\/|https:\/\/)/.test(mm.url)) return { error: `Menu link "${mm.label}" must start with / or https://` };
+  const locations = String(form.get("locations") ?? "").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter(([n, a]) => n && a)
+    .map(([name, address, phone = "", hours = ""]) => ({ name: name.slice(0, 80), address: address.slice(0, 200), phone: phone.slice(0, 30), hours: hours.slice(0, 80) }));
+  const gaId = String(form.get("gaId") ?? "").trim().toUpperCase();
+  const pixelId = String(form.get("pixelId") ?? "").trim();
+  if (gaId && !/^G-[A-Z0-9]{4,15}$/.test(gaId)) return { error: "Google Analytics IDs look like G-XXXXXXX." };
+  if (pixelId && !/^\d{8,20}$/.test(pixelId)) return { error: "A Meta Pixel ID is a long number." };
+  const exitOfferCode = String(form.get("exitOfferCode") ?? "").trim().toUpperCase();
+  if (exitOfferCode && !/^[A-Z0-9_-]{3,30}$/.test(exitOfferCode)) return { error: "The exit offer must be a discount code (letters and numbers)." };
+  const customCss = String(form.get("customCss") ?? "").slice(0, 20000);
+  const { Instance } = platformModels(await platformDb());
+  await Instance.updateOne({ _id: store.id }, { $set: {
+    "settings.menu": menu.slice(0, 8), "settings.locations": locations.slice(0, 30), "settings.gaId": gaId, "settings.pixelId": pixelId,
+    "settings.exitOfferCode": exitOfferCode, "settings.customCss": customCss,
+  } });
+  await audit(store, actorEmail(user), "settings.storefront");
+  refresh(store);
+  return { ok: "Storefront settings saved." };
+}
+
+// ---------- Developer API and webhooks (F-112) ----------
+
+export async function createApiKey(site: string, _: SecretState, form: FormData): Promise<SecretState> {
+  const { store, user, m } = await ctx(site, "settings");
+  if (!store.features["F-112"]) return { error: "Turn on Owner API access (F-112) first." };
+  if ((await m.ApiKey.countDocuments()) >= 10) return { error: "You can have up to 10 keys. Revoke one first." };
+  const name = String(form.get("name") ?? "").trim().slice(0, 60) || "API key";
+  const key = `sk_${crypto.randomBytes(24).toString("base64url")}`;
+  await m.ApiKey.create({ name, prefix: key.slice(0, 10), hash: crypto.createHash("sha256").update(key).digest("hex") });
+  await audit(store, actorEmail(user), "api.key_create", name);
+  refresh(store);
+  return { ok: "Key created. Copy it now; it won't be shown again.", key };
+}
+
+export async function revokeApiKey(site: string, id: string) {
+  const { store, user, m } = await ctx(site, "settings");
+  if (!Types.ObjectId.isValid(id)) return;
+  const k = await m.ApiKey.findByIdAndDelete(id).lean();
+  if (k) await audit(store, actorEmail(user), "api.key_revoke", k.name);
+  refresh(store);
+}
+
+export async function addWebhook(site: string, _: SecretState, form: FormData): Promise<SecretState> {
+  const { store, user, m } = await ctx(site, "settings");
+  if (!store.features["F-112"]) return { error: "Turn on Owner API access (F-112) first." };
+  const url = String(form.get("url") ?? "").trim();
+  if (!isSafeWebhookUrl(url)) return { error: "Use a public https:// address (no localhost or private IPs)." };
+  const events = form.getAll("events").map(String).filter((e) => (WEBHOOK_EVENTS as readonly string[]).includes(e));
+  if (!events.length) return { error: "Choose at least one event." };
+  if ((await m.Webhook.countDocuments()) >= 10) return { error: "You can have up to 10 webhooks." };
+  const secret = `whsec_${crypto.randomBytes(18).toString("base64url")}`;
+  await m.Webhook.create({ url, events, secret });
+  await audit(store, actorEmail(user), "api.webhook_add", url);
+  refresh(store);
+  return { ok: "Webhook added. Use this secret to verify the X-Signature header (HMAC-SHA256 of the body).", secret };
+}
+
+export async function removeWebhook(site: string, id: string) {
+  const { store, m } = await ctx(site, "settings");
+  if (Types.ObjectId.isValid(id)) await m.Webhook.deleteOne({ _id: id });
+  refresh(store);
+}
+
+export async function testWebhooks(site: string) {
+  const { store } = await ctx(site, "settings");
+  await fireWebhook(store, "order.created", { test: true, number: 0, total: 0 });
+  refresh(store);
+}
+
+// ---------- Change subdomain (FR-S-04: once per 30 days) ----------
+
+export async function changeSubdomain(site: string, _: MState, form: FormData): Promise<MState> {
+  const { store, user } = await ctx(site, "settings");
+  if (user.role !== "owner") return { error: "Only the store owner can change the address." };
+  const v = validateSubdomain(String(form.get("subdomain") ?? ""));
+  if (!v.ok) return { error: v.error };
+  if (v.value === store.subdomain) return { error: "That's already your address." };
+  const { Instance } = platformModels(await platformDb());
+  const inst = await Instance.findById(store.id).lean();
+  const last = inst?.subdomainChangedAt ? new Date(inst.subdomainChangedAt).getTime() : 0;
+  const next = last + 30 * 86400_000;
+  if (last && Date.now() < next)
+    return { error: `You can change the address again on ${new Date(next).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", dateStyle: "long" })}.` };
+  if (await Instance.exists({ subdomain: v.value })) return { error: `"${v.value}" is already taken.` };
+  await Instance.updateOne({ _id: store.id }, { $set: { subdomain: v.value, subdomainChangedAt: new Date() } });
+  await audit(store, actorEmail(user), "store.subdomain", undefined, store.subdomain, v.value);
+  revalidatePath("/", "layout");
+  // Path mode moves to the new path; on a subdomain host go to the new host; a custom domain keeps working.
+  const onCustomDomain = !store.base && !!store.customDomain && (await headers()).get("host")?.split(":")[0] === store.customDomain;
+  redirect(store.base ? `/s/${v.value}/manage/settings` : onCustomDomain ? "/manage/settings" : `${storeUrl(v.value)}/manage/settings`);
 }

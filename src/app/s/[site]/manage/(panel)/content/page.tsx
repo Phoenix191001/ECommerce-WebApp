@@ -1,0 +1,43 @@
+import Link from "next/link";
+import { requireStore, storeModels } from "@/lib/tenant";
+import { requireStaff } from "@/lib/store-auth";
+import { Badge, Card } from "@/components/admin/ui";
+import { ExtrasForm, PageEditor } from "@/components/manage/content-forms";
+
+export const metadata = { title: "Content" };
+
+export default async function Content({ params }: { params: Promise<{ site: string }> }) {
+  const { site } = await params;
+  const store = await requireStore(site);
+  await requireStaff(store, "settings");
+  const f = store.features;
+  const pages = f["F-40"] ? await (await storeModels(store)).Page.find().sort({ createdAt: -1 }).lean() : [];
+  const b = store.base;
+  return (
+    <>
+      <h1 className="text-2xl font-bold text-slate-900">Content and storefront</h1>
+      {f["F-40"] ? (
+        <>
+          <Card title="📄 Pages and blog posts" accent="sky">
+            {pages.length === 0 ? <p className="text-sm text-slate-500">No pages yet. Add an About page or your first blog post below.</p> : (
+              <ul className="divide-y divide-slate-100 text-sm">
+                {pages.map((pg) => (
+                  <li key={String(pg._id)} className="flex flex-wrap items-center gap-2 py-2">
+                    <Badge tone={pg.kind === "post" ? "violet" : "sky"}>{pg.kind === "post" ? "blog post" : "page"}</Badge>
+                    <Link href={`${b}/manage/content/${pg._id}`} className="font-medium hover:underline">{pg.title}</Link>
+                    {!pg.published && <Badge tone="slate">draft</Badge>}
+                    <a href={`${b}/${pg.kind === "post" ? "blog" : "pages"}/${pg.slug}`} target="_blank" className="ms-auto text-xs text-emerald-700 hover:underline">View ↗</a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+          <Card title="➕ New page or post" accent="emerald"><PageEditor site={site} /></Card>
+        </>
+      ) : <Card><p className="text-sm text-slate-600">Turn on Blog and content pages (F-40) under Features to write pages and blog posts.</p></Card>}
+      <Card title="🧭 Menu, locations, tracking, and styling" accent="violet">
+        <ExtrasForm site={site} f={f} v={{ menu: store.settings.menu, locations: store.settings.locations, gaId: store.settings.gaId, pixelId: store.settings.pixelId, exitOfferCode: store.settings.exitOfferCode, customCss: store.settings.customCss }} />
+      </Card>
+    </>
+  );
+}

@@ -16,12 +16,17 @@ export default async function ManageLayout({ children, params }: Props) {
     { href: `${b}/orders`, label: "Orders", icon: "🧾", perm: "orders" },
     { href: `${b}/products`, label: "Products", icon: "📦", perm: "catalog", show: !!f["F-01"] },
     { href: `${b}/customers`, label: "Customers", icon: "👥", perm: "customers" },
+    { href: `${b}/returns`, label: "Returns", icon: "↩️", perm: "orders", show: !!f["F-46"] },
+    { href: `${b}/support`, label: "Support", icon: "💬", perm: "customers", show: !!f["F-73"] },
     { href: `${b}/discounts`, label: "Discounts", icon: "🏷️", perm: "discounts", show: !!f["F-27"] },
     { href: `${b}/pos`, label: "POS", icon: "💵", perm: "pos", show: !!f["F-34"] },
     { href: `${b}/staff`, label: "Staff", icon: "🧑‍🤝‍🧑", perm: "staff", show: !!f["F-48"] },
+    { href: `${b}/reports`, label: "Profit", icon: "📈", perm: "reports", show: !!f["F-82"] },
+    { href: `${b}/content`, label: "Content", icon: "📝", perm: "settings" },
     { href: `${b}/features`, label: "Features", icon: "🧩", perm: "features" },
     { href: `${b}/settings`, label: "Settings", icon: "⚙️", perm: "settings" },
     { href: `${b}/activity`, label: "Activity", icon: "📜", perm: "settings", show: !!f["F-122"] },
+    { href: `${b}/developers`, label: "Developers", icon: "🧑‍💻", perm: "settings", show: !!f["F-112"] },
   ];
   const items = nav.filter((n) => n.show !== false && can(user.role, n.perm));
 

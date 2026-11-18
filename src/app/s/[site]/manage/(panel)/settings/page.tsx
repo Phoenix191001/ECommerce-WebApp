@@ -3,7 +3,10 @@ import { requireStaff } from "@/lib/store-auth";
 import { domainStatus, domainsConfigured } from "@/lib/vercel-domains";
 import { storeUrl } from "@/lib/subdomain";
 import { Badge, Card } from "@/components/admin/ui";
-import { BrandingForm, DomainForm, SettingsForm } from "@/components/manage/forms";
+import { BrandingForm, DomainForm, SettingsForm, SubdomainForm } from "@/components/manage/forms";
+import { platformDb } from "@/lib/db";
+import { platformModels } from "@/lib/models/platform";
+import { rootDomain } from "@/lib/subdomain";
 import { removeCustomDomain } from "../../manage-actions";
 
 export const metadata = { title: "Settings" };
@@ -11,7 +14,10 @@ export const metadata = { title: "Settings" };
 export default async function Settings({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
   const store = await requireStore(site);
-  await requireStaff(store, "settings");
+  const user = await requireStaff(store, "settings");
+  const inst = await platformModels(await platformDb()).Instance.findById(store.id, { subdomainChangedAt: 1 }).lean();
+  const nextAt = inst?.subdomainChangedAt ? new Date(inst.subdomainChangedAt).getTime() + 30 * 86400_000 : 0;
+  const nextChange = nextAt > new Date().getTime() ? new Date(nextAt).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", dateStyle: "long" }) : undefined;
   const status = store.customDomain && domainsConfigured() ? await domainStatus(store.customDomain).catch(() => null) : null;
   return (
     <>
@@ -24,6 +30,7 @@ export default async function Settings({ params }: { params: Promise<{ site: str
       </Card>
       <Card title="🌐 Store address" accent="sky">
         <p className="text-sm text-slate-600">Your store is at <a href={storeUrl(store.subdomain)} target="_blank" className="font-medium text-emerald-700 underline">{storeUrl(store.subdomain)}</a>.</p>
+        {user.role === "owner" && <div className="mt-3"><SubdomainForm site={site} current={store.subdomain} root={rootDomain()} nextChange={nextChange} /></div>}
         {store.features["F-89"] ? (
           <div className="mt-4 space-y-3">
             <p className="text-sm font-medium text-slate-800">Custom domain</p>

@@ -3,7 +3,7 @@
 import { KeepForm } from "@/components/keep-form";
 import { useActionState, useState } from "react";
 import {
-  addStaff, ownerSetup, refundOrder, saveBranding, saveDiscount, saveProduct, saveSettings, setCustomDomain, staffLogin,
+  addStaff, changeSubdomain, ownerSetup, refundOrder, saveBranding, saveDiscount, saveProduct, saveSettings, setCustomDomain, staffLogin,
   type MState,
 } from "@/app/s/[site]/manage/manage-actions";
 import { Field, FormMessage, btnTealCls, inputCls } from "@/components/admin/ui";
@@ -302,6 +302,21 @@ export function DomainForm({ site, current }: { site: string; current?: string }
         <input name="domain" defaultValue={current} placeholder="shop.example.com" className={tealInput} aria-label="Custom domain" />
         <button className={btnTealCls} disabled={p}>{p ? "Adding…" : current ? "Change" : "Add domain"}</button>
       </div>
+      <FormMessage state={s} />
+    </KeepForm>
+  );
+}
+
+export function SubdomainForm({ site, current, root, nextChange }: { site: string; current: string; root: string; nextChange?: string }) {
+  const [s, a, p] = useActionState<MState, FormData>(changeSubdomain.bind(null, site), undefined);
+  return (
+    <KeepForm action={a} className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <input name="subdomain" defaultValue={current} pattern="[a-z0-9-]{3,63}" className={`${tealInput} !w-56`} aria-label="New subdomain" />
+        <span className="text-slate-500">.{root}</span>
+        <button className={btnTealCls} disabled={p || !!nextChange}>Change address</button>
+      </div>
+      <p className="text-xs text-slate-500">{nextChange ? `You can change it again on ${nextChange}.` : "You can change the address once every 30 days. Old links stop working."}</p>
       <FormMessage state={s} />
     </KeepForm>
   );

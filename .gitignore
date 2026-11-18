@@ -40,3 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+tests/e2e/shots/
+tests/e2e/e2e-admin.json

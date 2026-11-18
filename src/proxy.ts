@@ -34,5 +34,6 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
+  // Pages, plus the few store files whose names contain a dot.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)", "/sitemap.xml", "/robots.txt", "/feed.xml", "/manifest.webmanifest"],
 };
