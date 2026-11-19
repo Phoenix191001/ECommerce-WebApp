@@ -197,7 +197,7 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       await see(op, "Shipment saved. The rest is still to ship.");
       await op.reload();
       await op.getByRole("button", { name: /Ship these items/ }).click();
-      await see(op, "Everything is shipped");
+      await see(op, "Shipment 2: Power Bundle × 1"); // the ship card closes once everything is shipped
       await sp.reload();
       await see(sp, "Shipment 2");
       await see(sp, "TCS123");
@@ -272,7 +272,7 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       await see(op, "saved.");
       await op.reload();
       await op.getByRole("button", { name: /Receive these/ }).click();
-      await see(op, "Received 20 item(s).");
+      await see(op, "(20 received)"); // the receive form closes once everything arrived
       await op.goto(`${S}/manage/products`);
       const cable = await op.locator("tr", { has: op.getByRole("link", { name: /Cable$/ }) }).locator("td").nth(2).innerText();
       if (cable.trim() !== "28") throw new Error("cable after PO " + cable);
@@ -329,7 +329,7 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       const card = op.locator("section", { hasText: "Recent sales pop-up" });
       await card.locator("summary", { hasText: "Install" }).click();
       await card.getByRole("button", { name: "Install" }).click();
-      await see(op, "Recent sales pop-up is on.");
+      await card.getByRole("button", { name: "Pause" }).waitFor();
       await sp.goto(`${S}/cart`);
       await sp.getByText(/bought/).first().waitFor({ timeout: 20000 });
     });

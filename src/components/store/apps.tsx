@@ -5,7 +5,8 @@ import { SalesPop } from "./sales-pop";
 /** F-114: storefront side of installed apps. Values were validated against each app's pattern. */
 export function StoreApps({ apps, consent, sales }: { apps: Installed[]; consent: boolean; sales: { city: string; name: string; ago: number }[] }) {
   const on = activeApps(apps);
-  const cfg = (id: string) => on.find((a) => a.id === id)?.config;
+  // An app with no settings is saved without a config object, so default it to {}.
+  const cfg = (id: string) => { const a = on.find((x) => x.id === id); return a ? (a.config ?? {}) : undefined; };
   const tawk = cfg("tawk"), gtm = cfg("gtm"), clarity = cfg("clarity"), tiktok = cfg("tiktok");
   return (
     <>

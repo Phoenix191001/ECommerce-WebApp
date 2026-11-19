@@ -10,7 +10,8 @@ export async function alertApps(store: StoreContext, o: { number: number; total:
   const send = (url: string, body: unknown) =>
     fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(5000) }).catch(() => {});
   await Promise.all(
-    activeApps(store.settings.apps).map((a) => {
+    activeApps(store.settings.apps).map(({ id, config = {} }) => {
+      const a = { id, config };
       if (a.id === "slack") return send(a.config.url, { text });
       if (a.id === "discord") return send(a.config.url, { content: text.slice(0, 1900) });
       if (a.id === "telegram") return send(`https://api.telegram.org/bot${a.config.token}/sendMessage`, { chat_id: a.config.chat, text });

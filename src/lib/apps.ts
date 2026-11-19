@@ -62,7 +62,7 @@ export const APPS: AppDef[] = [
 
 export const APP_MAP = Object.fromEntries(APPS.map((a) => [a.id, a]));
 
-export type Installed = { id: string; enabled: boolean; config: Record<string, string> };
+export type Installed = { id: string; enabled: boolean; config?: Record<string, string> };
 
 /** Enabled apps whose settings are all valid. */
 export function activeApps(installed: Installed[] | undefined) {
