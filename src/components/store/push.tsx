@@ -22,7 +22,7 @@ export function PushOptIn({ site, publicKey, order, token, marketing, L }: { sit
   }, []);
   if (state === "unsupported") return null;
   if (state === "on") return <p className="text-sm text-emerald-700">{L.pushOn}</p>;
-  if (state === "blocked") return <p className="text-xs text-slate-500">{L.pushBlocked}</p>;
+  if (state === "blocked") return marketing ? null : <p className="text-xs text-slate-500">{L.pushBlocked}</p>;
   return (
     <button
       type="button"

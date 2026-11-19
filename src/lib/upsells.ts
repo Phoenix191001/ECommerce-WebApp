@@ -10,7 +10,9 @@ export async function upsellsFor(store: StoreContext, cart: CartView, limit = 4)
   if (!store.features["F-57"] || !cart.items.length) return [];
   const m = await storeModels(store);
   const inCart = cart.items.map((i) => new Types.ObjectId(i.product));
-  const owners = await m.Product.find({ _id: { $in: inCart } }, { upsells: 1 }).lean();
+  // Picks on the cart's products, and on the items inside bundles in the cart.
+  const parts = cart.items.flatMap((i) => (i.bundle ?? []).map((b) => new Types.ObjectId(b.product)));
+  const owners = await m.Product.find({ _id: { $in: [...inCart, ...parts] } }, { upsells: 1 }).lean();
   const picked = [...new Set(owners.flatMap((p) => (p.upsells ?? []).map(String)))].filter((id) => !cart.items.some((i) => i.product === id));
   const base = { ...visibleFilter(store.features), _id: { $nin: inCart } };
   let list = picked.length ? await m.Product.find({ ...base, _id: { $in: picked.map((x) => new Types.ObjectId(x)), $nin: inCart } }).limit(limit).lean() : [];
@@ -21,6 +23,12 @@ export async function upsellsFor(store: StoreContext, cart: CartView, limit = 4)
         .sort({ ratingCount: -1, createdAt: -1 }).limit(limit - list.length).lean();
       list = [...list, ...more];
     }
+  }
+  if (list.length < limit) {
+    // Still short: newest products the shopper hasn't added.
+    const more = await m.Product.find({ ...base, _id: { $nin: [...inCart, ...parts, ...list.map((p) => p._id)] }, kind: { $ne: "giftcard" } })
+      .sort({ createdAt: -1 }).limit(limit - list.length).lean();
+    list = [...list, ...more];
   }
   return list;
 }
