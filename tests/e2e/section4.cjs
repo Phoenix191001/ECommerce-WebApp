@@ -2,6 +2,14 @@
 // Usage: node tests/e2e/section4.cjs <baseUrl> <vercelShareToken>
 // Needs the Super Admin created by e2e.cjs (E2E_CREDS file). Creates one store and deletes it at the end.
 const { chromium } = require("playwright");
+
+// Feature groups are dropdowns: open the one holding a switch before clicking it.
+async function opened(p, id) {
+  const sw = p.locator(`button[role=switch][aria-label^="${id} "]`);
+  const closed = p.locator("details:not([open])", { has: sw });
+  if (await closed.count()) await closed.locator("summary").click();
+  return sw;
+}
 const { TOTP, Secret } = require("otpauth");
 const fs = require("fs");
 
@@ -89,7 +97,7 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       await op.goto(`${S}/manage/features`);
       for (const id of FEATURES) {
         if ((await sw(id).getAttribute("aria-checked")) === "true") continue;
-        await sw(id).click();
+        await (await opened(op, id)).click();
         const fix = op.getByRole("button", { name: new RegExp(`Turn on ${id} with`) });
         for (let i = 0; i < 40; i++) {
           await op.waitForTimeout(250);

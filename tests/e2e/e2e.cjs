@@ -3,6 +3,14 @@
 // Run it against a preview whose PLATFORM_DB_NAME points at a throwaway database: it creates a Super Admin,
 // stores, orders and staff, then deletes the stores it created.
 const { chromium } = require("playwright");
+
+// Feature groups are dropdowns: open the one holding a switch before clicking it.
+async function opened(p, id) {
+  const sw = p.locator(`button[role=switch][aria-label^="${id} "]`);
+  const closed = p.locator("details:not([open])", { has: sw });
+  if (await closed.count()) await closed.locator("summary").click();
+  return sw;
+}
 const { TOTP, Secret } = require("otpauth");
 
 const BASE = process.argv[2];
@@ -117,14 +125,14 @@ async function step(name, fn) {
 
     await step("prerequisite one-click fix (F-10 needs F-22)", async () => {
       const sw = (id) => page.locator(`button[role=switch][aria-label^="${id} "]`);
-      await sw("F-22").click();
+      await (await opened(page, "F-22")).click();
       await page.waitForTimeout(1500);
       await page.reload();
       if ((await sw("F-22").getAttribute("aria-checked")) !== "false") throw new Error("F-22 did not turn off");
       if ((await sw("F-10").getAttribute("aria-checked")) !== "false") {
-        await sw("F-10").click(); await page.waitForTimeout(1500); await page.reload();
+        await (await opened(page, "F-10")).click(); await page.waitForTimeout(1500); await page.reload();
       }
-      await sw("F-10").click();
+      await (await opened(page, "F-10")).click();
       await page.getByText("F-10 needs F-22 turned on first").first().waitFor();
       await page.getByRole("button", { name: /Turn on F-10 with F-22/ }).click();
       await page.waitForTimeout(2000);
@@ -136,7 +144,7 @@ async function step(name, fn) {
       const sw = (id) => page.locator(`button[role=switch][aria-label^="${id} "]`);
       for (const id of ["F-34", "F-35", "F-36", "F-38", "F-37", "F-39"]) {
         if ((await sw(id).getAttribute("aria-checked")) === "true") continue;
-        await sw(id).click();
+        await (await opened(page, id)).click();
         await page.waitForTimeout(1200);
       }
       await page.reload();
@@ -393,14 +401,14 @@ async function step(name, fn) {
 
     await step("owner turns off accounts: account pages hidden (acceptance 6.3)", async () => {
       await op.goto(`${S}/manage/features`);
-      await op.locator('button[role=switch][aria-label^="F-22 "]').click();
+      await (await opened(op, "F-22")).click();
       await op.waitForTimeout(2000);
       const r = await sp.goto(`${S}/account`);
       if (r.status() !== 404) throw new Error("account page still visible: " + r.status());
       await op.goto(`${S}/manage/orders/${orderNo}`);
       await op.getByText(`Order #${orderNo}`).first().waitFor();
       await op.goto(`${S}/manage/features`);
-      await op.locator('button[role=switch][aria-label^="F-22 "]').click();
+      await (await opened(op, "F-22")).click();
       await op.waitForTimeout(1500);
     });
 

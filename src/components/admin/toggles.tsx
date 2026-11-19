@@ -31,6 +31,8 @@ export function ToggleBoard(p: Props) {
   const [message, setMessage] = useState<{ text: string; id?: string; missing?: string[] } | null>(null);
   const [filter, setFilter] = useState("");
   const [show, setShow] = useState<"all" | "on" | "available">("all");
+  // Groups are dropdowns, closed at first. "Open all"/"Close all" bumps `round` so every group takes the new state.
+  const [allOpen, setAllOpen] = useState<{ open: boolean; round: number }>({ open: false, round: 0 });
   const inPlan = new Set(p.planFeatures);
   const locked = new Set(p.locked);
   const impl = new Set(p.implemented);
@@ -48,7 +50,7 @@ export function ToggleBoard(p: Props) {
   const onCount = Object.values(p.effective).filter(Boolean).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <input
           value={filter}
@@ -63,6 +65,12 @@ export function ToggleBoard(p: Props) {
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setAllOpen((x) => ({ open: !x.open, round: x.round + 1 }))}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+        >
+          {allOpen.open ? "▴ Close all" : "▾ Open all"}
+        </button>
         {pending && <span className="animate-pulse text-sm text-indigo-600">Saving…</span>}
       </div>
       {message && (
@@ -85,13 +93,17 @@ export function ToggleBoard(p: Props) {
           return !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase() === q || f.id.toLowerCase().includes(q) || (p.descriptions[f.id] ?? "").toLowerCase().includes(q);
         });
         if (!shown.length) return null;
+        const searching = !!q || show !== "all";
+        const nOn = features.filter((f) => p.effective[f.id]).length;
         return (
-          <section key={group}>
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <details key={`${group}-${allOpen.round}-${searching}`} open={searching || allOpen.open} className="group/acc rounded-xl border border-slate-200 bg-white open:pb-3">
+            <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
               <span className={`h-2.5 w-2.5 rounded-full ${GROUP_COLORS[gi % GROUP_COLORS.length]}`} />
               {label}
-            </h3>
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <span className="ms-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{nOn} of {features.length} on</span>
+              <span aria-hidden className="text-slate-400 transition group-open/acc:rotate-180">▾</span>
+            </summary>
+            <ul className="mx-3 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
               {shown.map((f) => {
                 const on = !!optimistic[f.id];
                 const blocked = on && !p.effective[f.id];
@@ -144,7 +156,7 @@ export function ToggleBoard(p: Props) {
                 );
               })}
             </ul>
-          </section>
+          </details>
         );
       })}
     </div>
