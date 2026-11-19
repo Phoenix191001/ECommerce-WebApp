@@ -3,8 +3,8 @@ import { platformDb } from "@/lib/db";
 import { platformModels } from "@/lib/models/platform";
 import { ensurePlans } from "@/lib/plans";
 import { requireAdmin } from "@/lib/auth";
-import { storeUrl } from "@/lib/subdomain";
-import { Badge, Card, Checklist, STATUS_TONE, Stat, btnCls } from "@/components/admin/ui";
+import { Card, Checklist, btnCls } from "@/components/admin/ui";
+import { StoreTable } from "@/components/admin/store-table";
 import { dismissChecklist } from "../actions";
 
 export default async function DashboardPage() {
@@ -20,7 +20,6 @@ export default async function DashboardPage() {
     AuditLog.exists({ action: "owner.impersonate" }),
   ]);
   const planName = new Map(plans.map((p) => [String(p._id), p.name]));
-  const active = instances.filter((i) => i.status === "active").length;
 
   const steps = [
     { label: "Turn on two-factor sign-in", done: !!admin?.totpEnabled },
@@ -43,12 +42,6 @@ export default async function DashboardPage() {
         <Link href="/admin/instances/new" className={btnCls}>➕ New store</Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Stores" value={instances.length} tone="indigo" icon="🏬" />
-        <Stat label="Active" value={active} tone="emerald" icon="✅" />
-        <Stat label="Suspended" value={instances.length - active} tone="amber" icon="⏸️" />
-        <Stat label="Plans" value={plans.length} tone="violet" icon="💎" />
-      </div>
 
       {showChecklist && (
         <Card
@@ -65,38 +58,8 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      <Card title="Stores" accent="indigo">
-        {instances.length === 0 ? (
-          <div className="py-8 text-center">
-            <p className="text-4xl">🏪</p>
-            <p className="mt-2 text-sm text-slate-600">No stores yet. Create the first one to get started.</p>
-            <Link href="/admin/instances/new" className={`${btnCls} mt-4`}>Create a store</Link>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase text-slate-500">
-                <tr><th className="py-2">Store</th><th>Address</th><th>Plan</th><th>Owner</th><th>Status</th></tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {instances.map((i) => (
-                  <tr key={String(i._id)} className="hover:bg-slate-50">
-                    <td className="py-3">
-                      <Link href={`/admin/instances/${i._id}`} className="flex items-center gap-2 font-semibold text-slate-900 hover:text-indigo-700">
-                        <span className="h-3 w-3 rounded-full" style={{ background: i.branding?.primaryColor ?? "#4f46e5" }} />
-                        {i.name}
-                      </Link>
-                    </td>
-                    <td><a href={storeUrl(i.subdomain)} className="text-indigo-600 hover:underline" target="_blank">{i.customDomain || i.subdomain}</a></td>
-                    <td><Badge tone="violet">{planName.get(String(i.plan)) ?? "—"}</Badge></td>
-                    <td className="text-slate-600">{i.owner?.email}</td>
-                    <td><Badge tone={STATUS_TONE[i.status]}>{i.status}</Badge></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <Card title="Stores" accent="indigo" actions={<Link href="/admin/instances" className="text-sm text-indigo-700 hover:underline">All stores →</Link>}>
+        <StoreTable instances={instances.slice(0, 10)} planName={planName} />
       </Card>
     </>
   );
