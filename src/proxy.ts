@@ -17,9 +17,15 @@ function storeFromHost(host: string): string | null {
   return h; // any other host is a store's custom domain
 }
 
+/** F-78: give every storefront visitor a stable A/B bucket the first time they arrive. */
+function withAbBucket(req: NextRequest, res: NextResponse) {
+  if (!req.cookies.get("ab")) res.cookies.set("ab", Math.random() < 0.5 ? "a" : "b", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 90 });
+  return res;
+}
+
 export function proxy(req: NextRequest) {
   const site = storeFromHost(req.headers.get("host") ?? "");
-  if (!site) return NextResponse.next();
+  if (!site) return req.nextUrl.pathname.startsWith("/s/") ? withAbBucket(req, NextResponse.next()) : NextResponse.next();
 
   const { pathname } = req.nextUrl;
   // Stores never expose the platform admin panel or platform pages.
@@ -30,7 +36,7 @@ export function proxy(req: NextRequest) {
   url.pathname = `/s/${site}${pathname === "/" ? "" : pathname}`;
   const headers = new Headers(req.headers);
   headers.set("x-store-host", "1");
-  return NextResponse.rewrite(url, { request: { headers } });
+  return withAbBucket(req, NextResponse.rewrite(url, { request: { headers } }));
 }
 
 export const config = {

@@ -1,16 +1,63 @@
 "use client";
 
 import { KeepForm } from "@/components/keep-form";
-import { useActionState, useMemo, useRef, useState, useTransition } from "react";
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { closeShift, openShift, posRefund, posSale, type PosResult } from "@/app/s/[site]/manage/pos-actions";
 
 type Prod = { id: string; variant?: string; key: string; name: string; price: number; barcode: string; sku: string; stock: number };
 
 const money = (n: number, c: string) => new Intl.NumberFormat("en-PK", { style: "currency", currency: c, maximumFractionDigits: 0 }).format(n);
 
-export function PosScreen({ site, products, currency, taxRate, barcode, trackStock, receiptBase, refunds }: {
-  site: string; products: Prod[]; currency: string; taxRate: number; barcode: boolean; trackStock: boolean; receiptBase: string | null; refunds: boolean;
+type Queued = { id: string; at: string; lines: { id: string; variant?: string; qty: number }[]; tendered: number; total: number; error?: string };
+
+/** F-85: sales rung up without a connection wait in this browser until they can be sent. */
+function useOfflineQueue(site: string, enabled: boolean) {
+  const key = `pos_queue_${site}`;
+  const [queue, setQueue] = useState<Queued[]>([]);
+  const [online, setOnline] = useState(true);
+  const busy = useRef(false);
+  const save = useCallback((q: Queued[]) => { localStorage.setItem(key, JSON.stringify(q)); setQueue(q); }, [key]);
+  const load = useCallback((): Queued[] => { try { return JSON.parse(localStorage.getItem(key) ?? "[]"); } catch { return []; } }, [key]);
+  const sync = useCallback(async () => {
+    if (!enabled || busy.current || !navigator.onLine) return;
+    busy.current = true;
+    try {
+      for (const q of load()) {
+        if (q.error) continue;
+        try {
+          const r = await posSale(site, q.lines, q.tendered, { id: q.id, at: q.at });
+          const rest = load().filter((x) => x.id !== q.id);
+          save(r.error ? [...rest, { ...q, error: r.error }] : rest);
+        } catch {
+          break; // still offline
+        }
+      }
+    } finally {
+      busy.current = false;
+    }
+  }, [enabled, load, save, site]);
+  useEffect(() => {
+    if (!enabled) return;
+    const t = setTimeout(() => { setQueue(load()); setOnline(navigator.onLine); sync(); }, 0);
+    const up = () => { setOnline(true); sync(); };
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    const iv = setInterval(sync, 20000);
+    // Keep the POS page and its scripts so it can open without a connection.
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+    return () => { clearTimeout(t); clearInterval(iv); window.removeEventListener("online", up); window.removeEventListener("offline", down); };
+  }, [enabled, load, sync]);
+  const add = (q: Omit<Queued, "id" | "at">) => save([...load(), { ...q, id: crypto.randomUUID(), at: new Date().toISOString() }]);
+  const drop = (id: string) => save(load().filter((x) => x.id !== id));
+  const retry = (id: string) => { save(load().map((x) => (x.id === id ? { ...x, error: undefined } : x))); sync(); };
+  return { queue, online, add, drop, retry, sync };
+}
+
+export function PosScreen({ site, products, currency, taxRate, barcode, trackStock, receiptBase, refunds, offline = false }: {
+  site: string; products: Prod[]; currency: string; taxRate: number; barcode: boolean; trackStock: boolean; receiptBase: string | null; refunds: boolean; offline?: boolean;
 }) {
+  const oq = useOfflineQueue(site, offline);
   const [ticket, setTicket] = useState<Record<string, number>>({});
   const [q, setQ] = useState("");
   const [tendered, setTendered] = useState("");
@@ -38,14 +85,43 @@ export function PosScreen({ site, products, currency, taxRate, barcode, trackSto
 
   const complete = () =>
     start(async () => {
-      const r = await posSale(site, lines.map((l) => ({ id: l.p.id, variant: l.p.variant, qty: l.qty })), cash);
-      setMsg(r);
-      if (!r.error) { setTicket({}); setTendered(""); }
+      const sale = lines.map((l) => ({ id: l.p.id, variant: l.p.variant, qty: l.qty }));
+      const queueIt = () => {
+        oq.add({ lines: sale, tendered: cash, total });
+        setMsg({ ok: `📴 Offline: sale saved on this device. Change due: ${money(cash - total, currency)}. It will be sent when the connection is back.` });
+        setTicket({}); setTendered("");
+      };
+      if (offline && !navigator.onLine) { queueIt(); scanRef.current?.focus(); return; }
+      try {
+        const r = await posSale(site, sale, cash);
+        setMsg(r);
+        if (!r.error) { setTicket({}); setTendered(""); }
+      } catch {
+        if (offline) queueIt();
+        else setMsg({ error: "Couldn't reach the server. Check the connection and try again." });
+      }
       scanRef.current?.focus();
     });
 
   return (
     <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
+      {offline && (!oq.online || oq.queue.length > 0) && (
+        <div className={`lg:col-span-2 rounded-xl px-4 py-2 text-sm ${oq.online ? "bg-sky-50 text-sky-900" : "bg-amber-100 text-amber-900"}`}>
+          {!oq.online && <b>📴 You&apos;re offline. Keep selling; sales are saved on this device. </b>}
+          {oq.queue.length > 0 && (
+            <span>
+              {oq.queue.filter((q) => !q.error).length} sale(s) waiting to sync.{" "}
+              {oq.online && <button onClick={() => oq.sync()} className="font-semibold underline">Sync now</button>}
+            </span>
+          )}
+          {oq.queue.filter((q) => q.error).map((q) => (
+            <p key={q.id} className="mt-1 text-rose-700">
+              ⚠️ Sale of {money(q.total, currency)} at {new Date(q.at).toLocaleTimeString()} couldn&apos;t sync: {q.error}{" "}
+              <button onClick={() => oq.retry(q.id)} className="underline">Retry</button> · <button onClick={() => confirm("Discard this sale record?") && oq.drop(q.id)} className="underline">Discard</button>
+            </p>
+          ))}
+        </div>
+      )}
       <div className="space-y-3">
         <form onSubmit={onScan}>
           <input
@@ -104,7 +180,7 @@ export function PosScreen({ site, products, currency, taxRate, barcode, trackSto
             ))}
           </div>
           {cash >= total && total > 0 && <p className="mt-2 text-lg font-semibold text-emerald-700">Change: {money(cash - total, currency)}</p>}
-          <button onClick={complete} disabled={pending || !lines.length || cash < total} className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-lg font-bold text-white shadow disabled:opacity-40">
+          <button onClick={complete} disabled={pending || !lines.length || cash < total || total <= 0} className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-lg font-bold text-white shadow disabled:opacity-40">
             {pending ? "Completing…" : "Complete sale"}
           </button>
           {msg?.error && <p role="alert" className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{msg.error}</p>}

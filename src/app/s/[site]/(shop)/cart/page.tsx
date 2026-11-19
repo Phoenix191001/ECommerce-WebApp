@@ -5,6 +5,9 @@ import { storePrefs } from "@/lib/store-prefs";
 import { fill } from "@/lib/i18n";
 import { Qty } from "@/components/store/cart";
 import { CodeForm } from "@/components/store/forms";
+import { ProductCard } from "@/components/store/product-card";
+import { upsellsFor } from "@/lib/upsells";
+import { shopMoney } from "@/lib/currency";
 
 export const metadata = { title: "Cart" };
 
@@ -15,7 +18,8 @@ export default async function CartPage({ params }: { params: Promise<{ site: str
   const cart = await viewCart(store);
   const disc = await evaluateDiscount(store, cart.discountCode, cart.subtotal);
   const totals = priceOrder(store, cart.subtotal, disc.amount, "shipping");
-  const fm = (n: number) => formatMoney(n, store.currency);
+  const { fm, cur } = await shopMoney(store);
+  const upsells = await upsellsFor(store, cart);
   const b = store.base;
   const toFree = store.features["F-58"] && store.settings.freeShippingThreshold > 0 ? store.settings.freeShippingThreshold - (cart.subtotal - disc.amount) : 0;
 
@@ -40,6 +44,10 @@ export default async function CartPage({ params }: { params: Promise<{ site: str
                 <div className="flex-1">
                   <Link href={`${b}/p/${i.slug}`} className="font-medium hover:underline">{i.name}</Link>
                   {i.variantName && <p className="text-xs text-slate-500">{i.variantName}</p>}
+                  {i.custom?.map((c) => <p key={c.label} className="text-xs text-slate-500">{c.label}: <b>{c.value}</b></p>)}
+                  {i.bundle && <p className="text-xs text-slate-500">🧺 {i.bundle.map((x) => `${x.qty} × ${x.name}`).join(", ")}</p>}
+                  {i.kind === "digital" && <p className="text-xs text-sky-700">💾 {t.download}</p>}
+                  {i.kind === "giftcard" && <p className="text-xs text-violet-700">🎁 {t.giftCardLine}</p>}
                   <p className="text-sm text-slate-600">
                     {fm(i.price)} {t.each}
                     {i.rule && <span className="ms-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{i.rule}</span>}
@@ -62,9 +70,18 @@ export default async function CartPage({ params }: { params: Promise<{ site: str
               <div className="flex justify-between border-t border-slate-200 pt-2 text-base font-bold"><dt>{t.total}</dt><dd>{fm(totals.total)}</dd></div>
             </dl>
             {toFree > 0 && <p className="bg-brand-soft rounded-xl px-3 py-2 text-xs">{fill(t.addMoreFree, { amount: fm(toFree) })}</p>}
+            {cur && <p className="text-xs text-slate-500">{fill(t.pricesIn, { code: cur.code, base: store.currency })} {t.total}: {formatMoney(totals.total, store.currency)}</p>}
             <Link href={`${b}/checkout`} className="btn-brand w-full !py-3">{t.checkout}</Link>
           </aside>
         </div>
+      )}
+      {upsells.length > 0 && (
+        <section className="mt-10">
+          <h2 className="mb-4 text-xl font-bold">{t.boughtTogether}</h2>
+          <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            {upsells.map((p) => <ProductCard cur={cur} key={String(p._id)} p={p} site={site} base={b} currency={store.currency} f={store.features} L={t} />)}
+          </ul>
+        </section>
       )}
     </main>
   );

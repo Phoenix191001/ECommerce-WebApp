@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Dict } from "@/lib/i18n";
 import type { ToggleState } from "@/lib/features";
-import { formatMoney } from "@/lib/tenant";
+import { showMoney, type DisplayCurrency } from "@/lib/money";
 import { fromPrice, hasVariants, saleActive, totalStock } from "@/lib/pricing";
 import { AddToCart } from "./cart";
 
@@ -11,7 +11,7 @@ type P = {
   salePrice?: number | null; saleEndsAt?: Date | null;
 };
 
-export function ProductCard({ p, site, base, currency, f, L }: { p: P; site: string; base: string; currency: string; f: ToggleState; L: Dict }) {
+export function ProductCard({ p, site, base, currency, f, L, cur }: { p: P; site: string; base: string; currency: string; f: ToggleState; L: Dict; cur?: DisplayCurrency }) {
   const ctx = { features: f };
   const variants = !!f["F-02"] && hasVariants(p);
   const out = f["F-17"] && totalStock(p) <= 0;
@@ -38,8 +38,8 @@ export function ProductCard({ p, site, base, currency, f, L }: { p: P; site: str
         )}
         <p className="mt-auto text-sm">
           {variants && <span className="text-xs text-slate-500">{L.from} </span>}
-          <b className="text-brand">{formatMoney(price, currency)}</b>
-          {was && <s className="ms-2 text-xs text-slate-400">{formatMoney(was, currency)}</s>}
+          <b className="text-brand">{showMoney(price, currency, cur)}</b>
+          {was && <s className="ms-2 text-xs text-slate-400">{showMoney(was, currency, cur)}</s>}
         </p>
         {variants ? (
           <Link href={`${base}/p/${p.slug}`} className="btn-brand w-full !py-2 !text-xs">{L.chooseOption}</Link>

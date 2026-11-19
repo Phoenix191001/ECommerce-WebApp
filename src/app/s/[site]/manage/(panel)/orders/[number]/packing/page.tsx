@@ -31,7 +31,7 @@ export default async function Packing({ params }: { params: Promise<{ site: stri
         <thead><tr className="border-b border-slate-900 text-left"><th className="py-1">✓</th><th>Item</th><th className="text-right">Qty</th></tr></thead>
         <tbody>
           {o.items.map((i, n) => (
-            <tr key={n} className="border-b border-slate-200"><td className="py-2">☐</td><td>{i.name}{i.variantName ? ` — ${i.variantName}` : ""}</td><td className="text-right text-lg font-bold">{i.qty}</td></tr>
+            <tr key={n} className="border-b border-slate-200"><td className="py-2">☐</td><td>{i.name}{i.variantName ? ` — ${i.variantName}` : ""}{i.custom?.map((c) => <div key={c.label} className="text-xs">✍️ {c.label}: <b>{c.value}</b></div>)}{i.bundle?.length ? <div className="text-xs">Contains: {i.bundle.map((x) => `${x.qty * i.qty} × ${x.name}`).join(", ")}</div> : null}{(i.kind === "digital" || i.kind === "giftcard") && <div className="text-xs">(nothing to pack: {i.kind === "digital" ? "download" : "gift card"})</div>}</td><td className="text-right text-lg font-bold">{i.qty}</td></tr>
           ))}
         </tbody>
       </table>

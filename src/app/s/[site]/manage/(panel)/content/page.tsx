@@ -3,6 +3,9 @@ import { requireStore, storeModels } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { Badge, Card } from "@/components/admin/ui";
 import { ExtrasForm, PageEditor } from "@/components/manage/content-forms";
+import { ActionForm } from "@/components/manage/action-form";
+import { setHomePage } from "../../growth-actions";
+import { inputCls } from "@/components/admin/ui";
 
 export const metadata = { title: "Content" };
 
@@ -32,7 +35,20 @@ export default async function Content({ params }: { params: Promise<{ site: stri
               </ul>
             )}
           </Card>
-          <Card title="➕ New page or post" accent="emerald"><PageEditor site={site} /></Card>
+          {f["F-116"] && (
+            <Card title="🏠 Home page" accent="amber">
+              <ActionForm action={setHomePage.bind(null, site)} submit="Save" className="flex flex-wrap items-end gap-3">
+                <label className="flex-1 space-y-1 text-sm font-medium text-slate-700">Show this built page as your home page
+                  <select name="homePage" defaultValue={store.settings.homePage} className={inputCls}>
+                    <option value="">The product list (default)</option>
+                    {pages.filter((p) => p.kind === "page").map((p) => <option key={p.slug} value={p.slug}>{p.title}</option>)}
+                  </select>
+                </label>
+              </ActionForm>
+              <p className="mt-2 text-xs text-slate-500">Build the page with blocks first (open it from the list above). Add a “Products” block so shoppers can still buy from the home page.</p>
+            </Card>
+          )}
+          <Card title="➕ New page or post" accent="emerald"><PageEditor site={site} builder={!!f["F-116"]} /></Card>
         </>
       ) : <Card><p className="text-sm text-slate-600">Turn on Blog and content pages (F-40) under Features to write pages and blog posts.</p></Card>}
       <Card title="🧭 Menu, locations, tracking, and styling" accent="violet">

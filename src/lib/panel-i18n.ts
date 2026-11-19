@@ -6,6 +6,8 @@ import type { StoreContext } from "./tenant";
 // (cookie plang_<storeId>); it is separate from the language shoppers choose on the storefront.
 
 const en = {
+  giftCards: "Gift cards", affiliates: "Affiliates", abTests: "A/B tests", notifications: "Push", warehouses: "Warehouses",
+  purchaseOrders: "Purchase orders", sellers: "Sellers", liveChat: "Live chat", apps: "App store", mySales: "My sales", role_seller: "Seller",
   home: "Home", orders: "Orders", products: "Products", customers: "Customers", returns: "Returns", support: "Support",
   discounts: "Discounts", pos: "POS", staff: "Staff", profit: "Profit", content: "Content", features: "Features",
   settings: "Settings", activity: "Activity", developers: "Developers", viewStore: "View store ↗", help: "Help & guide ↗",
@@ -37,6 +39,8 @@ const en = {
 export type PanelDict = typeof en;
 
 const ur: PanelDict = {
+  giftCards: "گفٹ کارڈ", affiliates: "ایفیلیٹس", abTests: "اے/بی ٹیسٹ", notifications: "پش اطلاعات", warehouses: "گودام",
+  purchaseOrders: "خریداری آرڈر", sellers: "فروخت کنندگان", liveChat: "لائیو چیٹ", apps: "ایپ اسٹور", mySales: "میری فروخت", role_seller: "فروخت کنندہ",
   home: "ہوم", orders: "آرڈرز", products: "پروڈکٹس", customers: "گاہک", returns: "واپسیاں", support: "سپورٹ",
   discounts: "ڈسکاؤنٹس", pos: "کاؤنٹر (POS)", staff: "عملہ", profit: "منافع", content: "مواد", features: "فیچرز",
   settings: "سیٹنگز", activity: "سرگرمی", developers: "ڈویلپرز", viewStore: "اسٹور دیکھیں ↗", help: "مدد اور رہنمائی ↗",

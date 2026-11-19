@@ -22,6 +22,7 @@ export default async function ManageHome({ params }: { params: Promise<{ site: s
   const user = await requireStaff(store);
   const b = `${store.base}/manage`;
   if (user.role === "cashier") redirect(`${b}/pos`);
+  if (user.role === "seller") redirect(`${b}/seller`);
   const m = await storeModels(store);
   const f = store.features;
   const { since, day14 } = windows();

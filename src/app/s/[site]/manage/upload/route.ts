@@ -7,6 +7,14 @@ import { can, getCurrentUser } from "@/lib/store-auth";
 // who may edit the catalog or settings of this store.
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
 const MAX_BYTES = 5 * 1024 * 1024;
+// F-12 digital products: the files customers download after buying.
+const FILE_TYPES = [
+  "application/pdf", "application/zip", "application/x-zip-compressed", "application/epub+zip",
+  "audio/mpeg", "audio/mp4", "audio/wav", "video/mp4", "image/jpeg", "image/png", "image/webp",
+  "text/plain", "text/csv", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+];
+const MAX_FILE_BYTES = 200 * 1024 * 1024;
 
 export async function POST(req: Request, { params }: { params: Promise<{ site: string }> }) {
   const store = await getStore((await params).site);
@@ -23,6 +31,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ site: s
         if (!user || !(can(user.role, "catalog") || can(user.role, "settings"))) throw new Error("Sign in as store staff to upload images.");
         // Keep every store's files in its own folder.
         if (!pathname.startsWith(`stores/${store.id}/`) || pathname.includes("..")) throw new Error("Invalid upload path.");
+        // Downloads get a long random suffix so their address can't be guessed.
+        if (pathname.startsWith(`stores/${store.id}/downloads/`))
+          return { allowedContentTypes: FILE_TYPES, maximumSizeInBytes: MAX_FILE_BYTES, addRandomSuffix: true };
         return { allowedContentTypes: IMAGE_TYPES, maximumSizeInBytes: MAX_BYTES, addRandomSuffix: true };
       },
       onUploadCompleted: async () => {},

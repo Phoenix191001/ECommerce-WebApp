@@ -33,3 +33,30 @@ export async function rewardDelivered(store: StoreContext, m: TenantModels, orde
     }
   }
 }
+
+/**
+ * F-108: birthday (in the birthday month) and account-anniversary points, given once a year
+ * when the customer next visits their account. Returns what was given, to show a message.
+ */
+export async function celebrate(store: StoreContext, m: TenantModels, user: { _id: unknown; birthday?: string; createdAt?: Date; rewardsGiven?: string[] }) {
+  if (!store.features["F-108"] || !store.features["F-28"]) return [];
+  const now = new Date(Date.now() + 5 * 3600_000); // Pakistan time
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1;
+  const given = new Set(user.rewardsGiven ?? []);
+  const out: { kind: "birthday" | "anniversary"; points: number }[] = [];
+  if (user.birthday && Number(user.birthday.slice(0, 2)) === month && store.settings.birthdayPoints > 0 && !given.has(`birthday-${year}`))
+    out.push({ kind: "birthday", points: store.settings.birthdayPoints });
+  if (user.createdAt && store.settings.anniversaryPoints > 0) {
+    const c = new Date(new Date(user.createdAt).getTime() + 5 * 3600_000);
+    if (c.getUTCFullYear() < year && c.getUTCMonth() + 1 === month && !given.has(`anniversary-${year}`))
+      out.push({ kind: "anniversary", points: store.settings.anniversaryPoints });
+  }
+  const done: typeof out = [];
+  for (const r of out) {
+    // The rewardsGiven check makes this safe if two pages load at once.
+    const res = await m.User.updateOne({ _id: user._id, rewardsGiven: { $ne: `${r.kind}-${year}` } }, { $inc: { loyaltyPoints: r.points }, $push: { rewardsGiven: `${r.kind}-${year}` } });
+    if (res.modifiedCount) done.push(r);
+  }
+  return done;
+}

@@ -6,12 +6,11 @@ import { useRouter } from "next/navigation";
 import { addToCart, setCartQty } from "@/app/s/[site]/shop-actions";
 import type { CartView } from "@/lib/cart";
 import type { Dict } from "@/lib/i18n";
+import { showMoney, type DisplayCurrency } from "@/lib/money";
 
-const money = (n: number, c: string) =>
-  new Intl.NumberFormat("en-PK", { style: "currency", currency: c, maximumFractionDigits: 0 }).format(n);
 
 /** Header cart button. With F-20 on it opens a slide-out mini cart; otherwise it links to the cart page. */
-export function CartButton({ cart, base, site, currency, drawer, L }: { cart: CartView; base: string; site: string; currency: string; drawer: boolean; L: Dict }) {
+export function CartButton({ cart, base, site, currency, drawer, L, cur }: { cart: CartView; base: string; site: string; currency: string; drawer: boolean; L: Dict; cur?: DisplayCurrency }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const h = () => drawer && setOpen(true);
@@ -51,7 +50,7 @@ export function CartButton({ cart, base, site, currency, drawer, L }: { cart: Ca
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{i.name}</p>
                         {i.variantName && <p className="text-xs text-slate-500">{i.variantName}</p>}
-                        <p className="text-sm text-slate-600">{money(i.price, currency)}{i.rule && <span className="ms-1 text-xs text-emerald-600">({i.rule})</span>}</p>
+                        <p className="text-sm text-slate-600">{showMoney(i.price, currency, cur)}{i.rule && <span className="ms-1 text-xs text-emerald-600">({i.rule})</span>}</p>
                         <Qty site={site} lineKey={i.key} qty={i.qty} L={L} />
                       </div>
                     </li>
@@ -60,7 +59,7 @@ export function CartButton({ cart, base, site, currency, drawer, L }: { cart: Ca
               )}
             </div>
             <div className="space-y-3 border-t border-slate-200 px-5 py-4">
-              <div className="flex justify-between font-semibold"><span>{L.subtotal}</span><span>{money(cart.subtotal, currency)}</span></div>
+              <div className="flex justify-between font-semibold"><span>{L.subtotal}</span><span>{showMoney(cart.subtotal, currency, cur)}</span></div>
               <Link href={`${base}/checkout`} onClick={() => setOpen(false)} className={`btn-brand w-full ${cart.items.length ? "" : "pointer-events-none opacity-50"}`}>
                 {L.checkout}
               </Link>
@@ -87,7 +86,7 @@ export function Qty({ site, lineKey, qty, L }: { site: string; lineKey: string; 
   );
 }
 
-export function AddToCart({ site, product, variant, disabled, full, L }: { site: string; product: string; variant?: string; disabled?: boolean; full?: boolean; L: Dict }) {
+export function AddToCart({ site, product, variant, custom, disabled, full, L }: { site: string; product: string; variant?: string; custom?: Record<string, string>; disabled?: boolean; full?: boolean; L: Dict }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ error?: string; ok?: string } | null>(null);
   const router = useRouter();
@@ -97,7 +96,7 @@ export function AddToCart({ site, product, variant, disabled, full, L }: { site:
         disabled={pending || disabled}
         onClick={() =>
           start(async () => {
-            const r = await addToCart(site, product, 1, variant);
+            const r = await addToCart(site, product, 1, variant, custom);
             setMsg(r ?? null);
             router.refresh();
             if (!r?.error) window.dispatchEvent(new Event("cart:open"));

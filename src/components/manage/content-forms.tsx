@@ -4,10 +4,15 @@ import { useActionState, useState } from "react";
 import { addWebhook, createApiKey, savePage, saveStorefrontExtras, type MState, type SecretState } from "@/app/s/[site]/manage/manage-actions";
 import { KeepForm } from "@/components/keep-form";
 import { Field, FormMessage, btnTealCls, inputCls } from "@/components/admin/ui";
+import { PageBuilder } from "./page-builder";
+import type { Block } from "@/lib/blocks";
 
 const tealInput = inputCls.replaceAll("indigo", "emerald");
 
-export function PageEditor({ site, page }: { site: string; page?: { id: string; kind: string; title: string; body: string; excerpt: string; published: boolean } }) {
+export function PageEditor({ site, page, builder, categories = [] }: {
+  site: string; page?: { id: string; kind: string; title: string; body: string; excerpt: string; published: boolean; blocks?: Block[] };
+  builder?: boolean; categories?: string[];
+}) {
   const [s, a, p] = useActionState<MState, FormData>(savePage.bind(null, site, page?.id ?? null), undefined);
   return (
     <KeepForm action={a} className="space-y-3">
@@ -19,8 +24,14 @@ export function PageEditor({ site, page }: { site: string; page?: { id: string; 
       </div>
       {!page && <Field label="Address (optional)" hint="e.g. about-us → /pages/about-us"><input name="slug" className={tealInput} /></Field>}
       <Field label="Summary" hint="Shown in the blog list."><input name="excerpt" defaultValue={page?.excerpt} maxLength={300} className={tealInput} /></Field>
-      <Field label="Text" hint="Plain text. Blank lines start new paragraphs; lines starting with # become headings and - become bullet points.">
-        <textarea name="body" rows={14} defaultValue={page?.body} className={`${tealInput} font-mono text-sm`} />
+      {builder && (
+        <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
+          <p className="text-sm font-semibold text-emerald-900">🧱 Page builder</p>
+          <PageBuilder initial={page?.blocks ?? []} categories={categories} />
+        </div>
+      )}
+      <Field label={builder ? "Text (used when the page has no blocks, and for blog posts)" : "Text"} hint="Plain text. Blank lines start new paragraphs; lines starting with # become headings and - become bullet points.">
+        <textarea name="body" rows={builder ? 5 : 14} defaultValue={page?.body} className={`${tealInput} font-mono text-sm`} />
       </Field>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="published" value="1" defaultChecked={page?.published ?? true} /> Published</label>
       <FormMessage state={s} />

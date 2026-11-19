@@ -6,6 +6,10 @@ import { storePrefs } from "@/lib/store-prefs";
 import { visibleFilter } from "@/lib/pricing";
 import { fuzzyScore } from "@/lib/fuzzy";
 import { ProductCard } from "@/components/store/product-card";
+import { abVariants } from "@/lib/ab";
+import { displayCurrency } from "@/lib/currency";
+import { Blocks } from "@/components/store/blocks";
+import { cleanBlocks } from "@/lib/blocks";
 
 type Props = {
   params: Promise<{ site: string }>;
@@ -21,15 +25,26 @@ export default async function StoreHome({ params, searchParams }: Props) {
   const f = store.features;
   const b = store.base;
   const { t } = await storePrefs(store);
+  const plain = !Object.values(sp).some(Boolean);
+  // F-78: tested headline / banner image for this visitor's bucket (views counted on the plain home page only).
+  const ab = f["F-78"] ? await abVariants(await storeModels(store), plain) : {};
+  const tagline = ab.headline ?? store.branding.tagline;
+  const cur = await displayCurrency(store);
+  // F-116: a built page can replace the home page (search and filters still show the product grid).
+  if (f["F-116"] && f["F-40"] && store.settings.homePage && plain) {
+    const pg = await (await storeModels(store)).Page.findOne({ slug: store.settings.homePage, published: true }).lean();
+    const blocks = pg ? cleanBlocks(pg.blocks) : [];
+    if (blocks.length) return <main className="pb-8"><Blocks blocks={blocks} store={store} site={site} L={t} cur={cur} /></main>;
+  }
 
   const hero = (
-    <section className="bg-brand-gradient relative overflow-hidden text-white">
+    <section className="bg-brand-gradient relative overflow-hidden text-white" style={ab.hero ? { backgroundImage: `linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,.35)),url("${encodeURI(ab.hero)}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
       <div className="absolute -end-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
       <div className="absolute -bottom-20 start-10 h-48 w-48 rounded-full bg-white/10" />
       <div className="relative mx-auto max-w-6xl px-4 py-14">
         <p className="text-sm font-semibold uppercase tracking-widest text-white/80">{t.welcomeTo}</p>
         <h1 className="mt-1 text-4xl font-extrabold sm:text-5xl">{store.name}</h1>
-        {store.branding.tagline && <p className="mt-3 max-w-xl text-lg text-white/90">{store.branding.tagline}</p>}
+        {tagline && <p className="mt-3 max-w-xl text-lg text-white/90">{tagline}</p>}
         {f["F-58"] && store.settings.freeShippingThreshold > 0 && (
           <p className="mt-5 inline-block rounded-full bg-white/20 px-4 py-1.5 text-sm font-medium backdrop-blur">
             🚚 {t.freeDeliveryOver} {formatMoney(store.settings.freeShippingThreshold, store.currency)}
@@ -150,7 +165,7 @@ export default async function StoreHome({ params, searchParams }: Props) {
           </div>
         ) : (
           <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-            {products.map((p) => <ProductCard key={String(p._id)} p={p} site={site} base={b} currency={store.currency} f={f} L={t} />)}
+            {products.map((p) => <ProductCard cur={cur} key={String(p._id)} p={p} site={site} base={b} currency={store.currency} f={f} L={t} />)}
           </ul>
         )}
 
@@ -158,7 +173,7 @@ export default async function StoreHome({ params, searchParams }: Props) {
           <section className="mt-12">
             <h2 className="mb-4 text-xl font-bold">👀 {t.recentlyViewed}</h2>
             <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {recent.slice(0, 4).map((p) => <ProductCard key={String(p._id)} p={p} site={site} base={b} currency={store.currency} f={f} L={t} />)}
+              {recent.slice(0, 4).map((p) => <ProductCard cur={cur} key={String(p._id)} p={p} site={site} base={b} currency={store.currency} f={f} L={t} />)}
             </ul>
           </section>
         )}

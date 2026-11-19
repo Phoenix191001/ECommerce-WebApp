@@ -30,3 +30,7 @@ export const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
   refunded: "Refunded",
 };
+
+/** F-12: downloads unlock once the store confirms the order (and stay locked if it's cancelled or refunded). */
+export const canDownload = (o: { status: string; paymentStatus: string }) =>
+  ["confirmed", "shipped", "delivered"].includes(o.status) && o.paymentStatus !== "refunded";

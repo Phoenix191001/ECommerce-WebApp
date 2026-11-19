@@ -51,6 +51,14 @@ const DEFAULT_SETTINGS: StoreSettings = {
   customCss: "",
   menu: [],
   locations: [],
+  currencies: [],
+  birthdayPoints: 200,
+  anniversaryPoints: 100,
+  homePage: "",
+  apps: [],
+  chatGreeting: "Hi! 👋 How can we help?",
+  affiliateRate: 10,
+  sellerRate: 10,
 };
 
 /** Resolve an instance by subdomain, or by custom domain when `site` contains a dot. Cached per request. */
@@ -98,7 +106,7 @@ export function priceOrder(
   store: StoreContext,
   subtotal: number,
   discount: number,
-  delivery: "shipping" | "pickup",
+  delivery: "shipping" | "pickup" | "none",
 ) {
   const afterDiscount = Math.max(0, subtotal - discount);
   let shipping = 0;

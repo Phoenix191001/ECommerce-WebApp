@@ -7,6 +7,9 @@ import { fill, statusText } from "@/lib/i18n";
 import { storeUrl } from "@/lib/subdomain";
 import { logoutStore, toggleWishlist } from "../../shop-actions";
 import { AccountNav } from "./account-nav";
+import { AffiliateApply, BirthdayForm } from "@/components/store/extras";
+import { celebrate } from "@/lib/rewards";
+import { affiliateTotals } from "@/lib/affiliates";
 
 export const metadata = { title: "My account" };
 
@@ -26,6 +29,10 @@ export default async function AccountPage({ params }: { params: Promise<{ site: 
   ]);
   const b = store.base;
   const fm = (n: number) => formatMoney(n, store.currency);
+  const gifts = await celebrate(store, m, user);
+  const aff = f["F-71"] ? await m.Affiliate.findOne({ user: user._id }).lean() : null;
+  const affT = aff?.status === "active" ? (await affiliateTotals(m)).get(aff.code) : undefined;
+  const root = store.customDomain ? `https://${store.customDomain}` : storeUrl(store.subdomain);
   const refLink = user.referralCode ? `${storeUrl(store.subdomain)}/account/register?ref=${user.referralCode}` : "";
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
@@ -38,6 +45,9 @@ export default async function AccountPage({ params }: { params: Promise<{ site: 
         <form action={logoutStore.bind(null, site, "")}><button className="rounded-xl bg-white/20 px-4 py-2 text-sm font-medium backdrop-blur hover:bg-white/30">{L.signOut}</button></form>
       </div>
       <AccountNav store={store} active="home" L={L} />
+      {gifts.map((g) => (
+        <p key={g.kind} className="rounded-2xl bg-gradient-to-r from-amber-400 to-pink-500 p-4 font-semibold text-white shadow">{fill(g.kind === "birthday" ? L.birthdayGift : L.anniversaryGift, { n: g.points })}</p>
+      ))}
       {(f["F-28"] || f["F-56"] || (f["F-70"] && user.referralCode)) && (
         <div className="grid gap-4 sm:grid-cols-3">
           {f["F-28"] && (
@@ -64,6 +74,34 @@ export default async function AccountPage({ params }: { params: Promise<{ site: 
           )}
         </div>
       )}
+      {(f["F-108"] && f["F-28"] && !user.birthday) || f["F-71"] ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {f["F-108"] && f["F-28"] && !user.birthday && (
+            <section className="rounded-2xl bg-white p-5 shadow-sm">
+              <h2 className="font-bold">{L.birthdayTitle}</h2>
+              <p className="mb-3 text-sm text-slate-500">{fill(L.birthdayHint, { n: store.settings.birthdayPoints })}</p>
+              <BirthdayForm site={site} L={L} />
+            </section>
+          )}
+          {f["F-71"] && (
+            <section className="rounded-2xl bg-white p-5 shadow-sm">
+              <h2 className="font-bold">{L.affTitle}</h2>
+              {!aff ? (
+                <>
+                  <p className="mb-3 text-sm text-slate-500">{fill(L.affSub, { rate: store.settings.affiliateRate })}</p>
+                  <AffiliateApply site={site} L={L} />
+                </>
+              ) : aff.status === "pending" ? <p className="text-sm text-slate-600">{L.affPending}</p> : (
+                <div className="space-y-1 text-sm">
+                  <p className="text-slate-500">{fill(L.affSub, { rate: aff.rate })}</p>
+                  <p>{L.affLink}: <span className="break-all font-mono text-xs">{root}/a/{aff.code}</span></p>
+                  <p className="text-slate-600">{fill(L.affStats, { clicks: aff.clicks, orders: affT?.orders ?? 0, earned: fm(affT?.earned ?? 0) })}</p>
+                </div>
+              )}
+            </section>
+          )}
+        </div>
+      ) : null}
       <section className="rounded-2xl bg-white p-5 shadow-sm">
         <h2 className="mb-3 text-lg font-bold">{L.myOrders}</h2>
         {orders.length === 0 ? <p className="text-sm text-slate-500">{L.noOrders} <Link href={b || "/"} className="text-brand underline">{L.startShopping}</Link></p> : (

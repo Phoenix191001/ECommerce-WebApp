@@ -8,6 +8,9 @@ import { platformDb } from "@/lib/db";
 import { platformModels } from "@/lib/models/platform";
 import { rootDomain } from "@/lib/subdomain";
 import { removeCustomDomain } from "../../manage-actions";
+import { saveCurrencies, saveRewardSettings } from "../../growth-actions";
+import { ActionForm } from "@/components/manage/action-form";
+import { Field, inputCls } from "@/components/admin/ui";
 
 export const metadata = { title: "Settings" };
 
@@ -28,6 +31,24 @@ export default async function Settings({ params }: { params: Promise<{ site: str
       <Card title="🏪 Store settings" accent="emerald">
         <SettingsForm site={site} s={{ currency: store.currency, ...store.settings }} f={store.features} />
       </Card>
+      {store.features["F-55"] && (
+        <Card title="💱 Other currencies" accent="amber">
+          <ActionForm action={saveCurrencies.bind(null, site)} submit="Save currencies">
+            <Field label={`What 1 ${store.currency} is worth in each currency`} hint="One per line, e.g. USD = 0.0036. Shoppers can switch the price display; orders are still charged in your currency. Update the rates when they change.">
+              <textarea name="currencies" rows={3} defaultValue={store.settings.currencies.map((c) => `${c.code} = ${c.rate}`).join("\n")} className={`${inputCls} font-mono text-xs`} placeholder={"USD = 0.0036\nAED = 0.013"} />
+            </Field>
+          </ActionForm>
+        </Card>
+      )}
+      {store.features["F-108"] && (
+        <Card title="🎂 Birthday and anniversary rewards" accent="rose">
+          <ActionForm action={saveRewardSettings.bind(null, site)} submit="Save" className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <Field label="Birthday points" hint="Given in the customer's birthday month."><input name="birthdayPoints" type="number" min="0" defaultValue={store.settings.birthdayPoints} className={inputCls} /></Field>
+            <Field label="Anniversary points" hint="Given each year in the month they joined."><input name="anniversaryPoints" type="number" min="0" defaultValue={store.settings.anniversaryPoints} className={inputCls} /></Field>
+          </ActionForm>
+          {!store.features["F-28"] && <p className="mt-2 text-xs text-amber-700">Turn on loyalty points (F-28) so customers can receive these.</p>}
+        </Card>
+      )}
       <Card title="🌐 Store address" accent="sky">
         <p className="text-sm text-slate-600">Your store is at <a href={storeUrl(store.subdomain)} target="_blank" className="font-medium text-emerald-700 underline">{storeUrl(store.subdomain)}</a>.</p>
         {user.role === "owner" && <div className="mt-3"><SubdomainForm site={site} current={store.subdomain} root={rootDomain()} nextChange={nextChange} /></div>}

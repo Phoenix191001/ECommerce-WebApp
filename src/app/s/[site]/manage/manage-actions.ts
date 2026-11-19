@@ -22,14 +22,17 @@ import { sendBackInStock } from "@/lib/stock-alerts";
 import { WEBHOOK_EVENTS, fireWebhook, isSafeWebhookUrl } from "@/lib/webhooks";
 import { rewardDelivered } from "@/lib/rewards";
 import { parseCsv } from "@/lib/csv";
+import { issueOrderGiftCards, refundGiftCard } from "@/lib/giftcards";
+import { notifyOrderPush } from "@/lib/push";
+import { cleanBlocks } from "@/lib/blocks";
 
 export type MState = { error?: string; ok?: string } | undefined;
 export type SecretState = { error?: string; ok?: string; key?: string; secret?: string } | undefined;
 
-async function ctx(site: string, perm?: Permission) {
+async function ctx(site: string, perm?: Permission, seller = false) {
   const store = await getStore(site);
   if (!store) throw new Error("Store not found");
-  const user = await requireStaff(store, perm);
+  const user = await requireStaff(store, perm, { seller });
   const m = await storeModels(store);
   return { store, user, m };
 }
@@ -48,7 +51,7 @@ const refresh = (store: StoreContext) => revalidatePath(`/s/${store.subdomain}`,
 export async function staffLogin(site: string, _: MState, form: FormData): Promise<MState> {
   const store = await getStore(site);
   if (!store) return { error: "Store not found." };
-  const res = await loginAs(store, form, ["owner", "manager", "cashier"], `${store.base}/manage`);
+  const res = await loginAs(store, form, store.features["F-67"] ? ["owner", "manager", "cashier", "seller"] : ["owner", "manager", "cashier"], `${store.base}/manage`);
   return res;
 }
 
@@ -61,14 +64,14 @@ export async function ownerSetup(site: string, token: string, _: MState, form: F
   if (password !== String(form.get("confirm") ?? "")) return { error: "The two passwords don't match." };
   const m = await storeModels(store);
   const hash = crypto.createHash("sha256").update(token).digest("hex");
-  const owner = await m.User.findOne({ role: "owner", setupTokenHash: hash, setupTokenExpires: { $gt: new Date() } });
-  if (!owner) return { error: "This setup link has expired or was already used. Ask the platform admin for a new one." };
+  const owner = await m.User.findOne({ role: { $in: ["owner", "seller"] }, setupTokenHash: hash, setupTokenExpires: { $gt: new Date() } });
+  if (!owner) return { error: "This setup link has expired or was already used. Ask for a new one." };
   owner.passwordHash = await bcrypt.hash(password, 12);
   owner.setupTokenHash = undefined;
   owner.setupTokenExpires = undefined;
   await owner.save();
-  await createStoreSession(store, String(owner._id), "owner");
-  redirect(`${store.base}/manage/welcome`);
+  await createStoreSession(store, String(owner._id), owner.role);
+  redirect(`${store.base}/manage/${owner.role === "seller" ? "seller" : "welcome"}`);
 }
 
 export async function staffLogout(site: string) {
@@ -120,7 +123,22 @@ const productSchema = z.object({
   saleEndsAt: z.string().optional().default(""),
   costPrice: z.coerce.number().min(0).default(0),
   wholesalePrice: optNum,
+  kind: z.enum(["physical", "digital", "giftcard"]).default("physical"),
+  digitalUrl: z.string().max(1000).optional().default(""),
+  digitalName: z.string().max(200).optional().default(""),
+  bundle: z.string().max(5000).optional().default(""),
+  customFields: z.string().max(2000).optional().default(""),
+  upsells: z.string().max(2000).optional().default(""),
+  seller: z.string().max(40).optional().default(""),
 });
+
+/** "Label | required | 20" per line (F-63). */
+function parseCustomFields(text: string) {
+  return text.split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 5).map((l) => {
+    const [label, req, max] = l.split("|").map((x) => x.trim());
+    return { label: label.slice(0, 60), required: /^req/i.test(req ?? ""), maxLength: Math.max(1, Math.min(500, Number(max) || 100)) };
+  }).filter((c) => c.label);
+}
 
 const slugify = (s: string) =>
   s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "product";
@@ -156,7 +174,7 @@ const num = (v: number | "" | undefined) => (v === "" || v === undefined ? undef
 const date = (v: string) => (v ? new Date(v) : undefined);
 
 export async function saveProduct(site: string, id: string | null, _: MState, form: FormData): Promise<MState> {
-  const { store, user, m } = await ctx(site, "catalog");
+  const { store, user, m } = await ctx(site, "catalog", true);
   if (!store.features["F-01"]) return { error: "Turn on the product catalog (F-01) first." };
   const parsed = productSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -170,6 +188,37 @@ export async function saveProduct(site: string, id: string | null, _: MState, fo
   const pt = parseTiers(d.volumeTiers);
   if (pt.error) return { error: pt.error };
   if (num(d.salePrice) !== undefined && !d.saleEndsAt) return { error: "A flash sale needs an end date and time." };
+  const f = store.features;
+  // F-67: a seller can only touch their own products, and they stay theirs.
+  if (user.role === "seller") {
+    if (!user.sellerId) return { error: "Your seller account isn't linked to a seller profile." };
+    if (before && String(before.seller) !== String(user.sellerId)) return { error: "You can only edit your own products." };
+  }
+  const kind = (d.kind === "digital" && f["F-12"]) || (d.kind === "giftcard" && f["F-32"]) ? d.kind : "physical";
+  if (kind === "digital" && !/^https:\/\/\S+$/.test(d.digitalUrl)) return { error: "Upload the file customers will download." };
+  let bundle: { product: Types.ObjectId; qty: number; name: string }[] = [];
+  if (f["F-13"] && kind === "physical" && d.bundle) {
+    let raw: { product: string; qty: number }[] = [];
+    try { raw = JSON.parse(d.bundle); } catch { return { error: "The bundle list couldn't be read." }; }
+    raw = raw.filter((r) => Types.ObjectId.isValid(r.product) && r.product !== id).slice(0, 20);
+    const parts = await m.Product.find({ _id: { $in: raw.map((r) => r.product) } }, { name: 1, variants: 1, bundle: 1 }).lean();
+    for (const r of raw) {
+      const part = parts.find((x) => String(x._id) === r.product);
+      if (!part) continue;
+      if (part.variants?.length) return { error: `${part.name} has variants, so it can't be in a bundle.` };
+      if (part.bundle?.length) return { error: `${part.name} is a bundle itself. Bundles can't contain bundles.` };
+      bundle.push({ product: part._id, qty: Math.max(1, Math.min(99, Math.floor(r.qty) || 1)), name: part.name });
+    }
+    if (bundle.length && pv.variants!.length) return { error: "A bundle can't have variants. Remove the variants or the bundle items." };
+    if (bundle.length === 1 && bundle[0].qty === 1) bundle = [];
+  }
+  let customFields = f["F-63"] ? parseCustomFields(d.customFields) : [];
+  if (kind === "giftcard" && !customFields.length)
+    customFields = [{ label: "Recipient email", required: false, maxLength: 120 }, { label: "Message", required: false, maxLength: 200 }];
+  const upsells = f["F-57"] ? d.upsells.split(",").filter((x) => Types.ObjectId.isValid(x) && x !== id).slice(0, 8).map((x) => new Types.ObjectId(x)) : [];
+  let seller: Types.ObjectId | undefined;
+  if (user.role === "seller") seller = user.sellerId;
+  else if (f["F-67"] && Types.ObjectId.isValid(d.seller) && (await m.Seller.exists({ _id: d.seller }))) seller = new Types.ObjectId(d.seller);
   const doc = {
     name: d.name, price: d.price, stock: d.stock, category: d.category, brand: d.brand, sku: d.sku,
     barcode: d.barcode, description: d.description, status: d.status, images,
@@ -185,6 +234,12 @@ export async function saveProduct(site: string, id: string | null, _: MState, fo
     saleEndsAt: num(d.salePrice) !== undefined ? date(d.saleEndsAt) : undefined,
     costPrice: d.costPrice,
     wholesalePrice: num(d.wholesalePrice),
+    kind,
+    digitalFile: kind === "digital" ? { url: d.digitalUrl, name: d.digitalName.slice(0, 200) || "download" } : undefined,
+    bundle,
+    customFields,
+    upsells,
+    seller,
   };
   const unset = Object.fromEntries(Object.entries(doc).filter(([, v]) => v === undefined).map(([k]) => [k, 1]));
   const set = Object.fromEntries(Object.entries(doc).filter(([, v]) => v !== undefined));
@@ -214,9 +269,9 @@ export async function saveProduct(site: string, id: string | null, _: MState, fo
 }
 
 export async function deleteProduct(site: string, id: string) {
-  const { store, user, m } = await ctx(site, "catalog");
+  const { store, user, m } = await ctx(site, "catalog", true);
   if (!Types.ObjectId.isValid(id)) return;
-  const p = await m.Product.findByIdAndDelete(id).lean();
+  const p = await m.Product.findOneAndDelete(user.role === "seller" ? { _id: id, seller: user.sellerId } : { _id: id }).lean();
   if (p) await audit(store, actorEmail(user), "product.delete", p.name);
   refresh(store);
   redirect(`${store.base}/manage/products`);
@@ -253,8 +308,11 @@ export async function setOrderStatus(site: string, number: number, status: Order
       },
     );
   }
+  if (status === "cancelled" && o.giftCardCode && o.giftCardUsed) await refundGiftCard(m, o.giftCardCode, o.giftCardUsed, number);
   await o.save();
   if (status === "delivered") await rewardDelivered(store, m, number);
+  if (status === "confirmed" || status === "delivered") await issueOrderGiftCards(store, m, number);
+  await notifyOrderPush(store, m, number, status).catch(() => {});
   await fireWebhook(store, "order.status_changed", { number, from: old, to: status }).catch(() => {});
   await audit(store, actorEmail(user), "order.status", `#${number}`, old, status);
   if (store.features["F-41"] && o.customer.email) {
@@ -331,9 +389,11 @@ export async function editOrder(site: string, number: number, _: MState, form: F
   if (!["pending", "confirmed"].includes(o.status) || o.channel !== "online") return { error: "Only pending or confirmed online orders can be edited." };
   const next = o.items.map((it, i) => ({ it, qty: Math.max(0, Math.min(999, Math.floor(Number(form.get(`qty_${i}`) ?? it.qty)))) }));
   if (!next.some((x) => x.qty > 0)) return { error: "An order needs at least one item. Cancel it instead." };
-  const more = next.filter((x) => x.qty > x.it.qty).map((x) => ({ product: String(x.it.product), variant: x.it.variant ? String(x.it.variant) : undefined, qty: x.qty - x.it.qty, name: x.it.name }));
-  const less = next.filter((x) => x.qty < x.it.qty).map((x) => ({ product: String(x.it.product), variant: x.it.variant ? String(x.it.variant) : undefined, qty: x.it.qty - x.qty, name: x.it.name }));
-  if (!more.length && !less.length) return { ok: "No changes." };
+  const delta = (pick: (x: (typeof next)[number]) => number) =>
+    linesOf(next.filter((x) => pick(x) > 0).map((x) => ({ product: x.it.product, variant: x.it.variant, name: x.it.name, kind: x.it.kind, bundle: x.it.bundle, qty: pick(x) })));
+  const more = delta((x) => x.qty - x.it.qty);
+  const less = delta((x) => x.it.qty - x.qty);
+  if (next.every((x) => x.qty === x.it.qty)) return { ok: "No changes." };
   if (store.features["F-17"]) {
     const r = await reserveStock(m, more);
     if (r.short) return { error: `Not enough stock of ${r.short}.` };
@@ -344,7 +404,7 @@ export async function editOrder(site: string, number: number, _: MState, form: F
   const subtotal = o.items.reduce((n, i) => n + i.price * i.qty, 0);
   const priced = priceOrder(store, subtotal, Math.min(o.discount, subtotal), o.delivery);
   Object.assign(o, { subtotal: priced.subtotal, discount: priced.discount, shipping: priced.shipping, tax: priced.tax });
-  o.total = Math.max(0, priced.total + o.giftWrapFee - o.pointsDiscount - o.creditUsed);
+  o.total = Math.max(0, priced.total + o.giftWrapFee - o.pointsDiscount - o.creditUsed - (o.giftCardUsed ?? 0));
   o.editedAt = new Date();
   o.history.push({ status: o.status, at: new Date(), by: user.name, note: `Edited: total ${before} → ${o.total}` });
   await o.save();
@@ -352,6 +412,46 @@ export async function editOrder(site: string, number: number, _: MState, form: F
   refresh(store);
   return { ok: `Order updated. New total ${formatMoney(o.total, store.currency)}.` };
 }
+
+// ---------- Partial shipments (F-99) ----------
+
+export async function shipItems(site: string, number: number, _: MState, form: FormData): Promise<MState> {
+  const { store, user, m } = await ctx(site, "orders");
+  if (!store.features["F-99"]) return { error: "Partial shipments (F-99) are off." };
+  const o = await m.Order.findOne({ number });
+  if (!o) return { error: "Order not found." };
+  if (!["confirmed", "shipped"].includes(o.status)) return { error: "Confirm the order before shipping items." };
+  if (o.delivery !== "shipping") return { error: "Only delivery orders are shipped." };
+  const shipped = shippedQty(o.shipments, o.items.length);
+  const items = o.items
+    .map((it, line) => ({ line, qty: Math.max(0, Math.min(it.qty - shipped[line], Math.floor(Number(form.get(`ship_${line}`) ?? 0)))) }))
+    .filter((x) => x.qty > 0 && o.items[x.line].kind !== "digital" && o.items[x.line].kind !== "giftcard");
+  if (!items.length) return { error: "Enter how many of each item are in this parcel." };
+  const courier = String(form.get("courier") ?? "").trim().slice(0, 60);
+  const tracking = String(form.get("tracking") ?? "").trim().slice(0, 80);
+  o.shipments.push({ items, courier, tracking, by: user.name, at: new Date() });
+  const after = shippedQty(o.shipments, o.items.length);
+  const all = o.items.every((it, line) => it.kind === "digital" || it.kind === "giftcard" || after[line] >= it.qty);
+  const note = `Shipment ${o.shipments.length}: ${items.map((x) => `${o.items[x.line].name} × ${x.qty}`).join(", ")}${courier ? ` via ${courier}` : ""}${tracking ? ` (${tracking})` : ""}`;
+  if (all && o.status === "confirmed") {
+    o.status = "shipped";
+    o.history.push({ status: "shipped", at: new Date(), by: user.name, note });
+  } else o.history.push({ status: o.status, at: new Date(), by: user.name, note: `Partly shipped. ${note}` });
+  await o.save();
+  await audit(store, actorEmail(user), "order.shipment", `#${number}`, undefined, note);
+  if (store.features["F-41"] && o.customer.email)
+    await sendEmail(m, o.customer.email, `${store.name}: part of order #${number} is on the way`, `<p>Hi ${esc(o.customer.name)},</p><p>${esc(note)}</p>${all ? "<p>That's everything in your order.</p>" : "<p>The rest of your order will follow.</p>"}`);
+  await notifyOrderPush(store, m, number, all ? "shipped" : "partly").catch(() => {});
+  await fireWebhook(store, "order.status_changed", { number, shipment: o.shipments.length, complete: all }).catch(() => {});
+  refresh(store);
+  return { ok: all ? "Everything is shipped. The order is now marked as shipped." : "Shipment saved. The rest is still to ship." };
+}
+
+const shippedQty = (shipments: { items: { line: number; qty: number }[] }[], n: number) => {
+  const out = Array.from({ length: n }, () => 0);
+  for (const sh of shipments) for (const x of sh.items) if (x.line < n) out[x.line] += x.qty;
+  return out;
+};
 
 // ---------- Expenses (F-82) and attendance (F-84) ----------
 
@@ -796,6 +896,7 @@ export async function savePage(site: string, id: string | null, _: MState, form:
     body: String(form.get("body") ?? "").slice(0, 50000),
     excerpt: String(form.get("excerpt") ?? "").trim().slice(0, 300),
     published: form.get("published") === "1",
+    ...(store.features["F-116"] && form.has("blocks") ? { blocks: parseBlocks(String(form.get("blocks"))) } : {}),
   };
   if (id) {
     if (!Types.ObjectId.isValid(id)) return { error: "Unknown page." };
@@ -810,6 +911,8 @@ export async function savePage(site: string, id: string | null, _: MState, form:
   if (!id) redirect(`${store.base}/manage/content`);
   return { ok: "Saved." };
 }
+
+const parseBlocks = (json: string) => { try { return cleanBlocks(JSON.parse(json)); } catch { return []; } };
 
 export async function deletePage(site: string, id: string) {
   const { store, m } = await ctx(site, "settings");

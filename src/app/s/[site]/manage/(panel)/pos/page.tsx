@@ -3,6 +3,7 @@ import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { Card } from "@/components/admin/ui";
 import { CloseShiftForm, OpenShiftForm, PosScreen } from "@/components/manage/pos";
+import { loadParts, sellableStock } from "@/lib/cart";
 import { unitPrice } from "@/lib/pricing";
 
 export const metadata = { title: "Point of sale" };
@@ -27,7 +28,8 @@ export default async function PosPage({ params }: { params: Promise<{ site: stri
     );
   }
 
-  const products = await m.Product.find({ status: "active" }).sort({ name: 1 }).limit(2000).lean();
+  const products = await m.Product.find({ status: "active", kind: { $ne: "digital" } }).sort({ name: 1 }).limit(2000).lean();
+  const parts = await loadParts(store, products);
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -47,13 +49,14 @@ export default async function PosPage({ params }: { params: Promise<{ site: stri
         trackStock={!!f["F-17"]}
         receiptBase={f["F-39"] ? `${store.base}/manage/pos/receipt` : null}
         refunds={!!f["F-37"]}
+        offline={!!f["F-85"]}
         products={products.flatMap((p) =>
           f["F-02"] && p.variants?.length
             ? p.variants.map((v) => ({
                 id: String(p._id), variant: String(v._id), key: `${p._id}:${v._id}`, name: `${p.name} — ${v.name}`,
                 price: unitPrice(p, String(v._id), 1, { features: f }).price, barcode: v.barcode || "", sku: v.sku || "", stock: v.stock,
               }))
-            : [{ id: String(p._id), key: String(p._id), name: p.name, price: unitPrice(p, null, 1, { features: f }).price, barcode: p.barcode ?? "", sku: p.sku ?? "", stock: p.stock }],
+            : [{ id: String(p._id), key: String(p._id), name: p.name, price: unitPrice(p, null, 1, { features: f }).price, barcode: p.barcode ?? "", sku: p.sku ?? "", stock: sellableStock(p, undefined, parts, f) }],
         )}
       />
     </>

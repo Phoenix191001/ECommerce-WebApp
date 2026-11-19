@@ -7,7 +7,16 @@ import { getStoreSession } from "@/lib/store-auth";
 import { storePrefs } from "@/lib/store-prefs";
 import { CartButton } from "@/components/store/cart";
 import { CookieBanner } from "@/components/store/forms";
-import { NewsletterForm, PrefToggles } from "@/components/store/extras";
+import { CurrencyPicker, NewsletterForm, PrefToggles } from "@/components/store/extras";
+import { displayCurrency } from "@/lib/currency";
+import { StoreApps } from "@/components/store/apps";
+import { ChatWidget } from "@/components/store/chat";
+import { activeApps } from "@/lib/apps";
+import { recentSales } from "@/lib/recent-sales";
+import { abVariants } from "@/lib/ab";
+import { storeModels } from "@/lib/tenant";
+import { PushOptIn } from "@/components/store/push";
+import { pushConfigured, pushPublicKey } from "@/lib/push";
 
 type Props = { children: React.ReactNode; params: Promise<{ site: string }> };
 
@@ -38,6 +47,12 @@ export default async function ShopLayout({ children, params }: Props) {
   const pixelId = f["F-76"] ? safeId(store.settings.pixelId, /^\d{8,20}$/) : "";
   const menu = f["F-117"] ? store.settings.menu.filter((m) => m.label && /^(\/|https?:\/\/)/.test(m.url)).slice(0, 8) : [];
   const link = (u: string) => (u.startsWith("/") ? `${b}${u === "/" ? "" : u}` || "/" : u);
+  const ab = f["F-78"] ? await abVariants(await storeModels(store), false) : {};
+  const announcement = ab.announcement ?? store.settings.announcement;
+  const cur = await displayCurrency(store);
+  const currencies = f["F-55"] ? store.settings.currencies.map((c) => c.code) : [];
+  const apps = f["F-114"] ? store.settings.apps : [];
+  const salesPop = activeApps(apps).some((a) => a.id === "salespop") ? await recentSales(store) : [];
 
   return (
     <div lang={lang} dir={dir} className={`flex min-h-screen flex-col bg-slate-50 text-slate-900 ${dark ? "store-dark" : ""}`}>
@@ -46,8 +61,8 @@ export default async function ShopLayout({ children, params }: Props) {
         // Owner-provided CSS; "</" is stripped so it cannot close the style tag.
         <style dangerouslySetInnerHTML={{ __html: store.settings.customCss.replace(/<\//g, "") }} />
       )}
-      {f["F-118"] && store.settings.announcement && (
-        <div className="bg-brand px-4 py-2 text-center text-sm font-medium text-white">{store.settings.announcement}</div>
+      {(f["F-118"] || ab.announcement) && announcement && (
+        <div className="bg-brand px-4 py-2 text-center text-sm font-medium text-white">{announcement}</div>
       )}
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
@@ -66,13 +81,14 @@ export default async function ShopLayout({ children, params }: Props) {
             ))}
             {f["F-40"] && <Link href={`${b}/blog`} className="hidden rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100 md:block">{t.blog}</Link>}
             {f["F-51"] && <Link href={`${b}/track`} className="hidden rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100 sm:block">{t.trackOrder}</Link>}
+            {currencies.length > 0 && <CurrencyPicker site={site} base={store.currency} current={cur?.code ?? ""} options={currencies} />}
             <PrefToggles site={site} lang={lang} dark={dark} showLang={!!f["F-16"]} showDark={!!f["F-87"]} L={t} />
             {f["F-22"] && (
               <Link href={`${b}/account${session?.role === "customer" ? "" : "/login"}`} className="rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100">
                 {session?.role === "customer" ? `👤 ${t.account}` : t.signIn}
               </Link>
             )}
-            {f["F-01"] && <CartButton cart={cart} base={b} site={site} currency={store.currency} drawer={!!f["F-20"]} L={t} />}
+            {f["F-01"] && <CartButton cart={cart} base={b} site={site} currency={store.currency} drawer={!!f["F-20"]} L={t} cur={cur} />}
           </nav>
         </div>
       </header>
@@ -89,7 +105,10 @@ export default async function ShopLayout({ children, params }: Props) {
               <Link href={`${b}/manage`} className="hover:underline">{t.staffSignIn}</Link>
             </div>
           </div>
-          {f["F-44"] && <NewsletterForm site={site} L={t} />}
+          <div className="space-y-3">
+            {f["F-44"] && <NewsletterForm site={site} L={t} />}
+            {f["F-109"] && pushConfigured() && <PushOptIn site={site} publicKey={pushPublicKey()} marketing L={t} />}
+          </div>
         </div>
       </footer>
       {f["F-54"] && wa && (
@@ -103,6 +122,8 @@ export default async function ShopLayout({ children, params }: Props) {
         </a>
       )}
       {f["F-79"] && !jar.get("cc") && <CookieBanner text={t.cookie} accept={t.accept} />}
+      {apps.length > 0 && <StoreApps apps={apps} consent={consent} sales={salesPop} />}
+      {f["F-45"] && <ChatWidget site={site} L={t} signedIn={session?.role === "customer"} raised={!!(f["F-54"] && wa)} />}
       {consent && gaId && (
         <>
           <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />

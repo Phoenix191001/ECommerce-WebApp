@@ -3,7 +3,7 @@ import { Schema, type Connection, type Model, type Types } from "mongoose";
 // Per-instance collections. Each lives in the instance's own database, so no
 // query can reach another instance's data (NFR-01).
 
-export type StoreRole = "owner" | "manager" | "cashier" | "customer";
+export type StoreRole = "owner" | "manager" | "cashier" | "seller" | "customer";
 
 export interface Product {
   name: string;
@@ -32,8 +32,17 @@ export interface Product {
   saleEndsAt?: Date;
   costPrice: number; // F-82 profit reports
   wholesalePrice?: number; // F-61
+  kind: ProductKind; // F-12 digital, F-32 gift card
+  digitalFile?: { url: string; name: string }; // F-12
+  bundle: BundlePart[]; // F-13: selling this sells these parts
+  customFields: { label: string; required: boolean; maxLength: number }[]; // F-63
+  upsells: Types.ObjectId[]; // F-57
+  seller?: Types.ObjectId; // F-67
   createdAt?: Date;
 }
+
+export type ProductKind = "physical" | "digital" | "giftcard";
+export interface BundlePart { product: Types.ObjectId; qty: number; name: string }
 
 export interface Variant {
   _id: Types.ObjectId;
@@ -68,6 +77,9 @@ export interface User {
   totpSecret?: string; // F-69
   totpEnabled: boolean;
   newsletter: boolean; // F-44
+  birthday?: string; // F-108, "MM-DD"
+  rewardsGiven: string[]; // F-108, e.g. "birthday-2026"
+  sellerId?: Types.ObjectId; // F-67: staff account of a marketplace seller
   createdAt?: Date;
 }
 
@@ -79,6 +91,10 @@ export interface LineItem {
   price: number;
   qty: number;
   cost?: number;
+  kind?: ProductKind;
+  custom?: { label: string; value: string }[]; // F-63
+  bundle?: BundlePart[]; // F-13
+  seller?: Types.ObjectId; // F-67
 }
 
 export interface Cart {
@@ -97,7 +113,7 @@ export interface Order {
   cashier?: Types.ObjectId;
   shift?: Types.ObjectId;
   customer: { name: string; email: string; phone: string; address: string; city: string };
-  delivery: "shipping" | "pickup";
+  delivery: "shipping" | "pickup" | "none"; // "none": only digital items / gift cards
   items: LineItem[];
   subtotal: number;
   discount: number;
@@ -124,7 +140,27 @@ export interface Order {
   riskReasons: string[];
   pendingRefunds: { _id?: Types.ObjectId; amount: number; reason: string; requestedBy: string; at: Date }[]; // F-105
   editedAt?: Date; // F-98
+  shipments: Shipment[]; // F-99
+  giftCardCode?: string; // F-32 paid with
+  giftCardUsed: number;
+  giftCardsIssued: string[]; // F-32 bought
+  affiliate?: string; // F-71 code
+  commission: number;
+  commissionPaid: boolean;
+  abVariant?: string; // F-78 "a" | "b"
+  displayCurrency?: string; // F-55
+  displayRate?: number;
+  posClientId?: string; // F-85: id the POS gave a sale made offline, so a retry can't record it twice
   createdAt?: Date;
+}
+
+export interface Shipment {
+  _id?: Types.ObjectId;
+  items: { line: number; qty: number }[];
+  courier: string;
+  tracking: string;
+  by: string;
+  at: Date;
 }
 
 export interface Discount {
@@ -176,7 +212,16 @@ const lineItem = new Schema<LineItem>(
     name: { type: String, required: true },
     price: { type: Number, required: true, min: 0 },
     qty: { type: Number, required: true, min: 1, max: 999 },
+    kind: String,
+    custom: { type: [{ _id: false, label: String, value: String }], default: undefined },
+    bundle: { type: [{ _id: false, product: Schema.Types.ObjectId, qty: Number, name: String }], default: undefined },
+    seller: Schema.Types.ObjectId,
   },
+  { _id: false },
+);
+
+const customFieldSchema = new Schema(
+  { label: { type: String, required: true }, required: { type: Boolean, default: false }, maxLength: { type: Number, default: 100 } },
   { _id: false },
 );
 
@@ -210,6 +255,12 @@ const productSchema = new Schema<Product>(
     saleEndsAt: Date,
     costPrice: { type: Number, default: 0, min: 0 },
     wholesalePrice: { type: Number, min: 0 },
+    kind: { type: String, enum: ["physical", "digital", "giftcard"], default: "physical" },
+    digitalFile: { _id: false, url: String, name: String },
+    bundle: { type: [{ _id: false, product: Schema.Types.ObjectId, qty: { type: Number, min: 1 }, name: String }], default: [] },
+    customFields: { type: [customFieldSchema], default: [] },
+    upsells: { type: [Schema.Types.ObjectId], default: [] },
+    seller: { type: Schema.Types.ObjectId, index: true },
   },
   { timestamps: true },
 );
@@ -220,7 +271,7 @@ const userSchema = new Schema<User>(
     name: { type: String, required: true, trim: true },
     phone: { type: String, default: "", trim: true },
     passwordHash: String,
-    role: { type: String, enum: ["owner", "manager", "cashier", "customer"], required: true, index: true },
+    role: { type: String, enum: ["owner", "manager", "cashier", "seller", "customer"], required: true, index: true },
     refundLimit: { type: Number, default: 0, min: 0 },
     pinHash: String,
     wishlist: { type: [Schema.Types.ObjectId], default: [] },
@@ -242,6 +293,9 @@ const userSchema = new Schema<User>(
     totpSecret: String,
     totpEnabled: { type: Boolean, default: false },
     newsletter: { type: Boolean, default: false },
+    birthday: String,
+    rewardsGiven: { type: [String], default: [] },
+    sellerId: Schema.Types.ObjectId,
   },
   { timestamps: true },
 );
@@ -269,7 +323,7 @@ const orderSchema = new Schema<Order>(
       address: { type: String, default: "" },
       city: { type: String, default: "" },
     },
-    delivery: { type: String, enum: ["shipping", "pickup"], default: "shipping" },
+    delivery: { type: String, enum: ["shipping", "pickup", "none"], default: "shipping" },
     items: { type: [lineItem], required: true },
     subtotal: { type: Number, required: true },
     discount: { type: Number, default: 0 },
@@ -301,6 +355,20 @@ const orderSchema = new Schema<Order>(
     riskReasons: { type: [String], default: [] },
     pendingRefunds: { type: [{ amount: Number, reason: String, requestedBy: String, at: Date }], default: [] },
     editedAt: Date,
+    shipments: {
+      type: [{ items: [{ _id: false, line: Number, qty: Number }], courier: String, tracking: String, by: String, at: Date }],
+      default: [],
+    },
+    giftCardCode: String,
+    giftCardUsed: { type: Number, default: 0 },
+    giftCardsIssued: { type: [String], default: [] },
+    affiliate: { type: String, index: true, sparse: true },
+    commission: { type: Number, default: 0 },
+    commissionPaid: { type: Boolean, default: false },
+    abVariant: String,
+    displayCurrency: String,
+    displayRate: Number,
+    posClientId: { type: String, unique: true, sparse: true },
   },
   { timestamps: true },
 );
@@ -411,6 +479,7 @@ export interface Page {
   body: string;
   excerpt: string;
   published: boolean;
+  blocks: unknown[]; // F-116 page builder (see lib/blocks.ts)
   createdAt?: Date;
 }
 
@@ -508,6 +577,7 @@ const pageSchema = new Schema<Page>(
     body: { type: String, default: "", maxlength: 50000 },
     excerpt: { type: String, default: "", maxlength: 300 },
     published: { type: Boolean, default: true },
+    blocks: { type: Array, default: [] },
   },
   { timestamps: true },
 );
@@ -554,6 +624,252 @@ const webhookSchema = new Schema<Webhook>(
   { timestamps: true },
 );
 
+// ---------- Section 4 additions ----------
+
+export interface GiftCard {
+  code: string;
+  initial: number;
+  balance: number;
+  active: boolean;
+  expiresAt?: Date;
+  recipient: string; // email
+  note: string;
+  orderNumber?: number; // bought online
+  history: { amount: number; orderNumber?: number; by: string; at: Date }[];
+  createdAt?: Date;
+}
+
+export interface Affiliate {
+  name: string;
+  email: string;
+  code: string;
+  rate: number; // commission percent
+  status: "pending" | "active" | "paused";
+  user?: Types.ObjectId;
+  clicks: number;
+  statsKey: string;
+  createdAt?: Date;
+}
+
+export interface Experiment {
+  name: string;
+  section: "headline" | "announcement" | "hero";
+  a: string;
+  b: string;
+  active: boolean;
+  views: { a: number; b: number };
+  orders: { a: number; b: number };
+  revenue: { a: number; b: number };
+  createdAt?: Date;
+}
+
+export interface PushSub {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user?: Types.ObjectId;
+  orders: number[];
+  marketing: boolean;
+  createdAt?: Date;
+}
+
+export interface Warehouse {
+  name: string;
+  address: string;
+  isDefault: boolean;
+  active: boolean;
+}
+
+/** Stock held at a non-default warehouse. The default warehouse holds the product total minus these. */
+export interface WarehouseStock {
+  warehouse: Types.ObjectId;
+  product: Types.ObjectId;
+  variant?: Types.ObjectId;
+  qty: number;
+}
+
+export interface StockMove {
+  kind: "transfer" | "adjust" | "receive";
+  product: Types.ObjectId;
+  variant?: Types.ObjectId;
+  name: string;
+  from?: Types.ObjectId;
+  to?: Types.ObjectId;
+  qty: number;
+  note: string;
+  by: string;
+  createdAt?: Date;
+}
+
+export interface PurchaseOrder {
+  number: number;
+  supplier: { name: string; phone: string; email: string };
+  warehouse?: Types.ObjectId;
+  items: { product: Types.ObjectId; variant?: Types.ObjectId; name: string; qty: number; cost: number; received: number }[];
+  status: "draft" | "ordered" | "received" | "cancelled";
+  note: string;
+  expectedAt?: Date;
+  receivedAt?: Date;
+  createdAt?: Date;
+}
+
+export interface Seller {
+  name: string;
+  slug: string;
+  email: string;
+  phone: string;
+  about: string;
+  rate: number; // platform commission percent kept by the store
+  status: "active" | "paused";
+  payouts: { amount: number; note: string; by: string; at: Date }[];
+  createdAt?: Date;
+}
+
+export interface ChatThread {
+  visitor: string;
+  name: string;
+  email: string;
+  user?: Types.ObjectId;
+  status: "open" | "closed";
+  unread: boolean;
+  messages: { from: "visitor" | "staff"; name: string; text: string; at: Date }[];
+  lastAt: Date;
+  createdAt?: Date;
+}
+
+const giftCardSchema = new Schema<GiftCard>(
+  {
+    code: { type: String, required: true, unique: true, uppercase: true },
+    initial: { type: Number, required: true, min: 1 },
+    balance: { type: Number, required: true, min: 0 },
+    active: { type: Boolean, default: true },
+    expiresAt: Date,
+    recipient: { type: String, default: "", lowercase: true, trim: true },
+    note: { type: String, default: "" },
+    orderNumber: Number,
+    history: { type: [{ _id: false, amount: Number, orderNumber: Number, by: String, at: Date }], default: [] },
+  },
+  { timestamps: true },
+);
+
+const affiliateSchema = new Schema<Affiliate>(
+  {
+    name: { type: String, required: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
+    code: { type: String, required: true, unique: true, uppercase: true },
+    rate: { type: Number, default: 10, min: 0, max: 90 },
+    status: { type: String, enum: ["pending", "active", "paused"], default: "active" },
+    user: { type: Schema.Types.ObjectId, sparse: true, unique: true },
+    clicks: { type: Number, default: 0 },
+    statsKey: { type: String, required: true },
+  },
+  { timestamps: true },
+);
+
+const experimentSchema = new Schema<Experiment>(
+  {
+    name: { type: String, required: true },
+    section: { type: String, enum: ["headline", "announcement", "hero"], required: true },
+    a: { type: String, default: "" },
+    b: { type: String, default: "" },
+    active: { type: Boolean, default: true },
+    views: { a: { type: Number, default: 0 }, b: { type: Number, default: 0 } },
+    orders: { a: { type: Number, default: 0 }, b: { type: Number, default: 0 } },
+    revenue: { a: { type: Number, default: 0 }, b: { type: Number, default: 0 } },
+  },
+  { timestamps: true },
+);
+
+const pushSubSchema = new Schema<PushSub>(
+  {
+    endpoint: { type: String, required: true, unique: true },
+    p256dh: { type: String, required: true },
+    auth: { type: String, required: true },
+    user: Schema.Types.ObjectId,
+    orders: { type: [Number], default: [], index: true },
+    marketing: { type: Boolean, default: false },
+  },
+  { timestamps: true },
+);
+
+const warehouseSchema = new Schema<Warehouse>(
+  {
+    name: { type: String, required: true, maxlength: 80 },
+    address: { type: String, default: "" },
+    isDefault: { type: Boolean, default: false },
+    active: { type: Boolean, default: true },
+  },
+  { timestamps: true },
+);
+
+const warehouseStockSchema = new Schema<WarehouseStock>({
+  warehouse: { type: Schema.Types.ObjectId, required: true },
+  product: { type: Schema.Types.ObjectId, required: true, index: true },
+  variant: Schema.Types.ObjectId,
+  qty: { type: Number, default: 0 },
+});
+warehouseStockSchema.index({ warehouse: 1, product: 1, variant: 1 }, { unique: true });
+
+const stockMoveSchema = new Schema<StockMove>(
+  {
+    kind: { type: String, enum: ["transfer", "adjust", "receive"], required: true },
+    product: { type: Schema.Types.ObjectId, required: true },
+    variant: Schema.Types.ObjectId,
+    name: String,
+    from: Schema.Types.ObjectId,
+    to: Schema.Types.ObjectId,
+    qty: Number,
+    note: { type: String, default: "" },
+    by: String,
+  },
+  { timestamps: true },
+);
+
+const purchaseOrderSchema = new Schema<PurchaseOrder>(
+  {
+    number: { type: Number, required: true, unique: true },
+    supplier: { name: { type: String, required: true }, phone: { type: String, default: "" }, email: { type: String, default: "" } },
+    warehouse: Schema.Types.ObjectId,
+    items: {
+      type: [{ _id: false, product: Schema.Types.ObjectId, variant: Schema.Types.ObjectId, name: String, qty: { type: Number, min: 1 }, cost: { type: Number, min: 0 }, received: { type: Number, default: 0 } }],
+      default: [],
+    },
+    status: { type: String, enum: ["draft", "ordered", "received", "cancelled"], default: "draft", index: true },
+    note: { type: String, default: "" },
+    expectedAt: Date,
+    receivedAt: Date,
+  },
+  { timestamps: true },
+);
+
+const sellerSchema = new Schema<Seller>(
+  {
+    name: { type: String, required: true, maxlength: 100 },
+    slug: { type: String, required: true, unique: true, lowercase: true },
+    email: { type: String, required: true, lowercase: true, trim: true },
+    phone: { type: String, default: "" },
+    about: { type: String, default: "", maxlength: 2000 },
+    rate: { type: Number, default: 10, min: 0, max: 90 },
+    status: { type: String, enum: ["active", "paused"], default: "active" },
+    payouts: { type: [{ _id: false, amount: Number, note: String, by: String, at: Date }], default: [] },
+  },
+  { timestamps: true },
+);
+
+const chatSchema = new Schema<ChatThread>(
+  {
+    visitor: { type: String, required: true, index: true },
+    name: { type: String, default: "" },
+    email: { type: String, default: "" },
+    user: Schema.Types.ObjectId,
+    status: { type: String, enum: ["open", "closed"], default: "open", index: true },
+    unread: { type: Boolean, default: true },
+    messages: { type: [{ _id: false, from: String, name: String, text: { type: String, maxlength: 2000 }, at: Date }], default: [] },
+    lastAt: { type: Date, default: () => new Date(), index: true },
+  },
+  { timestamps: true },
+);
+
 const counterSchema = new Schema<{ _id: string; seq: number }>({ _id: String, seq: Number });
 
 function model<T>(conn: Connection, name: string, schema: Schema<T>): Model<T> {
@@ -581,14 +897,24 @@ export function tenantModels(conn: Connection) {
     Attendance: model<Attendance>(conn, "Attendance", attendanceSchema),
     ApiKey: model<ApiKey>(conn, "ApiKey", apiKeySchema),
     Webhook: model<Webhook>(conn, "Webhook", webhookSchema),
+    GiftCard: model<GiftCard>(conn, "GiftCard", giftCardSchema),
+    Affiliate: model<Affiliate>(conn, "Affiliate", affiliateSchema),
+    Experiment: model<Experiment>(conn, "Experiment", experimentSchema),
+    PushSub: model<PushSub>(conn, "PushSub", pushSubSchema),
+    Warehouse: model<Warehouse>(conn, "Warehouse", warehouseSchema),
+    WarehouseStock: model<WarehouseStock>(conn, "WarehouseStock", warehouseStockSchema),
+    StockMove: model<StockMove>(conn, "StockMove", stockMoveSchema),
+    PurchaseOrder: model<PurchaseOrder>(conn, "PurchaseOrder", purchaseOrderSchema),
+    Seller: model<Seller>(conn, "Seller", sellerSchema),
+    Chat: model<ChatThread>(conn, "Chat", chatSchema),
   };
 }
 
 export type TenantModels = ReturnType<typeof tenantModels>;
 
-export async function nextOrderNumber(m: TenantModels): Promise<number> {
+export async function nextOrderNumber(m: TenantModels, counter = "order"): Promise<number> {
   const c = await m.Counter.findOneAndUpdate(
-    { _id: "order" },
+    { _id: counter },
     { $inc: { seq: 1 } },
     { upsert: true, returnDocument: "after" },
   ).lean();

@@ -8,6 +8,7 @@ import {
 } from "@/app/s/[site]/manage/manage-actions";
 import { Field, FormMessage, btnTealCls, inputCls } from "@/components/admin/ui";
 import { ImageField } from "./image-field";
+import { FileField } from "./file-field";
 
 const tealInput = inputCls.replaceAll("indigo", "emerald");
 
@@ -41,7 +42,58 @@ type P = {
   optionNames?: string[]; variants?: { name: string; price?: number; stock: number; sku: string; barcode: string }[];
   tags?: string[]; publishAt?: string; warrantyMonths?: number; sizeGuide?: string; volumeTiers?: { minQty: number; price: number }[];
   salePrice?: number; saleEndsAt?: string; costPrice?: number; wholesalePrice?: number;
+  kind?: string; digitalFile?: { url: string; name: string }; bundle?: { product: string; qty: number }[];
+  customFields?: { label: string; required: boolean; maxLength: number }[]; upsells?: string[]; seller?: string;
 };
+
+type CatalogItem = { id: string; name: string; simple: boolean };
+
+/** F-13: pick the products (and how many of each) a bundle contains. */
+function BundleEditor({ initial, catalog }: { initial: { product: string; qty: number }[]; catalog: CatalogItem[] }) {
+  const [rows, setRows] = useState(initial.length ? initial : [{ product: "", qty: 1 }]);
+  const parts = catalog.filter((c) => c.simple);
+  const set = (i: number, v: Partial<{ product: string; qty: number }>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...v } : x)));
+  return (
+    <div className="space-y-2">
+      <input type="hidden" name="bundle" value={JSON.stringify(rows.filter((r) => r.product))} />
+      {rows.map((r, i) => (
+        <div key={i} className="flex gap-2">
+          <select value={r.product} onChange={(e) => set(i, { product: e.target.value })} className={`${tealInput} flex-1`} aria-label={`Bundle item ${i + 1}`}>
+            <option value="">Choose a product…</option>
+            {parts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <input type="number" min={1} max={99} value={r.qty} onChange={(e) => set(i, { qty: Math.max(1, Number(e.target.value) || 1) })} className={`${tealInput} w-20`} aria-label="Quantity" />
+          <button type="button" onClick={() => setRows((x) => x.filter((_, j) => j !== i))} className="px-2 text-rose-600" aria-label="Remove item">✕</button>
+        </div>
+      ))}
+      <button type="button" onClick={() => setRows((x) => [...x, { product: "", qty: 1 }])} className="text-sm font-medium text-emerald-700 hover:underline">➕ Add item</button>
+      <p className="text-xs text-slate-500">Selling one bundle takes these items out of stock. Products with variants can&apos;t be bundle items.</p>
+    </div>
+  );
+}
+
+/** F-57: products to suggest with this one. */
+function UpsellPicker({ initial, catalog, self }: { initial: string[]; catalog: CatalogItem[]; self?: string }) {
+  const [sel, setSel] = useState(new Set(initial));
+  const [q, setQ] = useState("");
+  const list = catalog.filter((c) => c.id !== self && (!q || c.name.toLowerCase().includes(q.toLowerCase()))).slice(0, 60);
+  return (
+    <div className="space-y-2">
+      <input type="hidden" name="upsells" value={[...sel].join(",")} />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products…" className={tealInput} aria-label="Search products to suggest" />
+      <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+        {list.map((c) => (
+          <label key={c.id} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={sel.has(c.id)} onChange={() => setSel((s) => { const n = new Set(s); if (n.has(c.id)) n.delete(c.id); else if (n.size < 8) n.add(c.id); return n; })} className="accent-emerald-600" />
+            {c.name}
+          </label>
+        ))}
+        {!list.length && <p className="text-xs text-slate-500">No products found.</p>}
+      </div>
+      <p className="text-xs text-slate-500">{sel.size}/8 chosen. Shown in the cart and at checkout. If you pick none, the store suggests items from the same category.</p>
+    </div>
+  );
+}
 
 /** Value for <input type="datetime-local"> in Pakistan time. */
 export const toLocalInput = (d?: string | Date | null) => {
@@ -59,7 +111,10 @@ function Section({ title, children, open }: { title: string; children: React.Rea
   );
 }
 
-export function ProductEditor({ site, product, categories, features = {}, uploadUrl, storeId }: { site: string; product?: P; categories: string[]; features?: Record<string, boolean>; uploadUrl: string; storeId: string }) {
+export function ProductEditor({ site, product, categories, features = {}, uploadUrl, storeId, catalog = [], sellers = [] }: {
+  site: string; product?: P; categories: string[]; features?: Record<string, boolean>; uploadUrl: string; storeId: string;
+  catalog?: CatalogItem[]; sellers?: { id: string; name: string }[];
+}) {
   const [s, a, p] = useActionState<MState, FormData>(saveProduct.bind(null, site, product?.id ?? null), undefined);
   const f = features;
   // datetime-local is in the browser's zone; convert Pakistan-time text back to UTC on submit.
@@ -69,6 +124,8 @@ export function ProductEditor({ site, product, categories, features = {}, upload
     a(fd);
   };
   const variantText = (product?.variants ?? []).map((v) => [v.name, v.price ?? "", v.stock, v.sku, v.barcode].join(" | ")).join("\n");
+  const [kind, setKind] = useState(product?.kind ?? "physical");
+  const customText = (product?.customFields ?? []).map((c) => [c.label, c.required ? "required" : "optional", c.maxLength].join(" | ")).join("\n");
   return (
     <KeepForm action={submit} className="space-y-4">
       <Field label="Product name"><input name="name" required defaultValue={product?.name} className={tealInput} /></Field>
@@ -91,6 +148,50 @@ export function ProductEditor({ site, product, categories, features = {}, upload
         <ImageField name="images" initial={product?.images ?? []} uploadUrl={uploadUrl} folder={`stores/${storeId}/products`} />
       </div>
       <Field label="Description"><textarea name="description" rows={5} defaultValue={product?.description} className={tealInput} /></Field>
+
+      {(f["F-12"] || f["F-32"]) && (
+        <Field label="What kind of product is this?">
+          <select name="kind" value={kind} onChange={(e) => setKind(e.target.value)} className={tealInput}>
+            <option value="physical">📦 Physical item — delivered or picked up</option>
+            {f["F-12"] && <option value="digital">💾 Digital download — a file the customer downloads</option>}
+            {f["F-32"] && <option value="giftcard">🎁 Gift card — the price is the card&apos;s value</option>}
+          </select>
+        </Field>
+      )}
+      {f["F-12"] && kind === "digital" && (
+        <div className="space-y-1 rounded-xl border border-sky-200 bg-sky-50 p-4">
+          <span className="text-sm font-semibold text-sky-900">💾 Download file</span>
+          <FileField name="digital" initial={product?.digitalFile} uploadUrl={uploadUrl} folder={`stores/${storeId}/downloads`} />
+        </div>
+      )}
+      {f["F-32"] && kind === "giftcard" && (
+        <p className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900">🎁 Shoppers can add the recipient&apos;s email and a message. When you confirm the order, a gift card code worth the price is created and emailed to the recipient. It&apos;s also shown on the order page.</p>
+      )}
+      {f["F-13"] && kind === "physical" && (
+        <Section title="🧺 Bundle (sell several products as one)" open={!!product?.bundle?.length}>
+          <BundleEditor initial={product?.bundle ?? []} catalog={catalog.filter((c) => c.id !== product?.id)} />
+        </Section>
+      )}
+      {f["F-63"] && (
+        <Section title="✍️ Personalisation fields" open={!!product?.customFields?.length}>
+          <Field label="Fields the shopper fills in" hint='One per line: label | required or optional | max letters. E.g. "Name to engrave | required | 20"'>
+            <textarea name="customFields" rows={3} defaultValue={customText} className={`${tealInput} font-mono text-xs`} placeholder={"Name to engrave | required | 20\nGift note | optional | 120"} />
+          </Field>
+        </Section>
+      )}
+      {f["F-57"] && (
+        <Section title="🛒 Suggest with this product" open={!!product?.upsells?.length}>
+          <UpsellPicker initial={product?.upsells ?? []} catalog={catalog} self={product?.id} />
+        </Section>
+      )}
+      {f["F-67"] && sellers.length > 0 && (
+        <Field label="Seller" hint="Marketplace seller who supplies this product. Leave empty if your store sells it.">
+          <select name="seller" defaultValue={product?.seller ?? ""} className={tealInput}>
+            <option value="">Your store</option>
+            {sellers.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </select>
+        </Field>
+      )}
 
       {f["F-02"] && (
         <Section title="🎨 Variants (sizes, colors)" open={!!product?.variants?.length}>

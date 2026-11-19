@@ -14,9 +14,10 @@ export default async function Products({ params, searchParams }: { params: Promi
   const { site } = await params;
   const { q, saved } = await searchParams;
   const store = await requireStore(site);
-  await requireStaff(store, "catalog");
+  const user = await requireStaff(store, "catalog", { seller: true });
+  const seller = user.role === "seller";
   const m = await storeModels(store);
-  const filter = q ? { $or: [{ name: { $regex: esc(q), $options: "i" } }, { sku: q }, { barcode: q }] } : {};
+  const filter = { ...(q ? { $or: [{ name: { $regex: esc(q), $options: "i" } }, { sku: q }, { barcode: q }] } : {}), ...(seller ? { seller: user.sellerId } : {}) };
   const products = await m.Product.find(filter).sort({ createdAt: -1 }).limit(200).lean();
   const b = `${store.base}/manage`;
   const f = store.features;
@@ -26,9 +27,9 @@ export default async function Products({ params, searchParams }: { params: Promi
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900">{L.products}</h1>
         <div className="flex gap-2">
-          {f["F-50"] && <a href={`${b}/export/products`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{L.exportCsv}</a>}
-          {(f["F-90"] || f["F-91"]) && <Link href={`${b}/products/bulk`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{L.bulk}</Link>}
-          {f["F-65"] && <Link href={`${b}/questions`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{L.questions}</Link>}
+          {f["F-50"] && !seller && <a href={`${b}/export/products`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{L.exportCsv}</a>}
+          {(f["F-90"] || f["F-91"]) && !seller && <Link href={`${b}/products/bulk`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{L.bulk}</Link>}
+          {f["F-65"] && !seller && <Link href={`${b}/questions`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{L.questions}</Link>}
           <Link href={`${b}/products/new`} className={btnTealCls}>{L.addProduct}</Link>
         </div>
       </div>

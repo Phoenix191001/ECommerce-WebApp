@@ -38,8 +38,8 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
       <table className="w-full text-sm">
         <thead><tr className="border-b-2 border-slate-800 text-left"><th className="py-2">Item</th><th className="text-right">Qty</th><th className="text-right">Price</th><th className="text-right">Amount</th></tr></thead>
         <tbody>
-          {o.items.map((i) => (
-            <tr key={`${i.product}:${i.variant ?? ""}`} className="border-b border-slate-200"><td className="py-2">{i.name}{i.variantName ? ` (${i.variantName})` : ""}</td><td className="text-right">{i.qty}</td><td className="text-right">{fm(i.price)}</td><td className="text-right">{fm(i.price * i.qty)}</td></tr>
+          {o.items.map((i, n) => (
+            <tr key={n} className="border-b border-slate-200"><td className="py-2">{i.name}{i.variantName ? ` (${i.variantName})` : ""}{i.custom?.length ? <span className="block text-xs text-slate-500">{i.custom.map((c) => `${c.label}: ${c.value}`).join(" · ")}</span> : null}</td><td className="text-right">{i.qty}</td><td className="text-right">{fm(i.price)}</td><td className="text-right">{fm(i.price * i.qty)}</td></tr>
           ))}
         </tbody>
       </table>
@@ -51,6 +51,7 @@ export default async function InvoicePage({ params, searchParams }: { params: Pr
         {o.giftWrapFee > 0 && <div className="flex justify-between"><dt>Gift wrap</dt><dd>{fm(o.giftWrapFee)}</dd></div>}
         {o.pointsDiscount > 0 && <div className="flex justify-between"><dt>Points</dt><dd>−{fm(o.pointsDiscount)}</dd></div>}
         {o.creditUsed > 0 && <div className="flex justify-between"><dt>Store credit</dt><dd>−{fm(o.creditUsed)}</dd></div>}
+        {o.giftCardUsed > 0 && <div className="flex justify-between"><dt>Gift card</dt><dd>−{fm(o.giftCardUsed)}</dd></div>}
         <div className="flex justify-between border-t-2 border-slate-800 pt-1 text-base font-bold"><dt>Total</dt><dd>{fm(o.total)}</dd></div>
         <div className="flex justify-between text-slate-600"><dt>Payment</dt><dd>{o.paymentStatus === "paid" ? "Paid" : "Due on delivery"}</dd></div>
       </dl>

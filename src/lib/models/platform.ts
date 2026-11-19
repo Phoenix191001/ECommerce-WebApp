@@ -56,6 +56,14 @@ export interface StoreSettings {
   customCss: string; // F-115
   menu: { label: string; url: string }[]; // F-117
   locations: { name: string; address: string; phone: string; hours: string }[]; // F-88
+  currencies: { code: string; rate: number }[]; // F-55: 1 store-currency unit = rate units of code
+  birthdayPoints: number; // F-108
+  anniversaryPoints: number;
+  homePage: string; // F-116: slug of a built page shown as the home page ("" = product grid)
+  apps: { id: string; enabled: boolean; config: Record<string, string> }[]; // F-114
+  chatGreeting: string; // F-45
+  affiliateRate: number; // F-71 default commission percent
+  sellerRate: number; // F-67 default commission the store keeps
 }
 
 export interface AuditLog {
@@ -145,6 +153,14 @@ const instanceSchema = new Schema<Instance>(
       customCss: { type: String, default: "", maxlength: 20000 },
       menu: { type: [{ _id: false, label: String, url: String }], default: [] },
       locations: { type: [{ _id: false, name: String, address: String, phone: String, hours: String }], default: [] },
+      currencies: { type: [{ _id: false, code: String, rate: Number }], default: [] },
+      birthdayPoints: { type: Number, default: 200, min: 0 },
+      anniversaryPoints: { type: Number, default: 100, min: 0 },
+      homePage: { type: String, default: "" },
+      apps: { type: [{ _id: false, id: String, enabled: Boolean, config: { type: Schema.Types.Mixed, default: {} } }], default: [] },
+      chatGreeting: { type: String, default: "Hi! 👋 How can we help?" },
+      affiliateRate: { type: Number, default: 10, min: 0, max: 90 },
+      sellerRate: { type: Number, default: 10, min: 0, max: 90 },
     },
     onboarding: {
       done: { type: [String], default: [] },

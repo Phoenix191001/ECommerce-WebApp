@@ -11,6 +11,8 @@ import { ReviewForm } from "@/components/store/forms";
 import { BuyBox, Countdown, QuestionForm, RecordView } from "@/components/store/extras";
 import { ProductCard } from "@/components/store/product-card";
 import { toggleCompare, toggleWishlist } from "../../../shop-actions";
+import { loadParts, sellableStock } from "@/lib/cart";
+import { displayCurrency } from "@/lib/currency";
 
 type Props = { params: Promise<{ site: string; slug: string }> };
 
@@ -53,6 +55,15 @@ export default async function ProductPage({ params }: Props) {
   const onSale = saleActive(p, ctx);
   const was = onSale ? p.price : p.compareAtPrice && p.compareAtPrice > price ? p.compareAtPrice : null;
   const tiers = f["F-62"] ? (p.volumeTiers ?? []).filter((x) => x.price < price) : [];
+  const isBundle = !!(f["F-13"] && p.bundle?.length);
+  const parts = isBundle ? await loadParts(store, [p]) : new Map();
+  const stock = sellableStock(p, undefined, parts, f);
+  const kind = (f["F-12"] && p.kind === "digital") || (f["F-32"] && p.kind === "giftcard") ? p.kind : "physical";
+  const customFields = (f["F-63"] || kind === "giftcard") ? (p.customFields ?? []).map((c) => ({ label: c.label, required: c.required, maxLength: c.maxLength })) : [];
+  const [cur, seller] = await Promise.all([
+    displayCurrency(store),
+    f["F-67"] && p.seller ? m.Seller.findOne({ _id: p.seller, status: "active" }, { name: 1, slug: 1 }).lean() : Promise.resolve(null),
+  ]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -97,7 +108,9 @@ export default async function ProductPage({ params }: Props) {
             variants={variants}
             optionLabel={(p.optionNames ?? []).join(" / ")}
             basePrice={price}
-            baseStock={p.stock}
+            baseStock={stock}
+            customFields={customFields}
+            fmt={cur}
             trackStock={!!f["F-17"]}
             lowAt={store.settings.lowStockAt}
             currency={store.currency}
@@ -124,6 +137,15 @@ export default async function ProductPage({ params }: Props) {
               </form>
             )}
           </div>
+          {kind === "digital" && <p className="rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-900">{t.instantDownload}</p>}
+          {kind === "giftcard" && <p className="rounded-xl bg-violet-50 px-3 py-2 text-sm text-violet-900">{t.giftCardBadge}</p>}
+          {isBundle && (
+            <div className="rounded-2xl bg-white p-4 text-sm shadow-sm">
+              <p className="mb-1 font-semibold">{t.inThisBundle}</p>
+              <ul className="list-inside list-disc text-slate-700">{p.bundle.map((x) => <li key={String(x.product)}>{x.qty} × {x.name}</li>)}</ul>
+            </div>
+          )}
+          {seller && <p className="text-sm text-slate-600">{t.soldBy} <Link href={`${b}/seller/${seller.slug}`} className="text-brand font-semibold hover:underline">{seller.name}</Link></p>}
           {f["F-111"] && p.warrantyMonths > 0 && <p className="text-sm">🛡️ {fill(t.warranty, { n: p.warrantyMonths })}</p>}
           {p.description && <div className="whitespace-pre-line rounded-2xl bg-white p-4 text-sm leading-relaxed text-slate-700 shadow-sm">{p.description}</div>}
           {f["F-64"] && p.sizeGuide && (
@@ -192,7 +214,7 @@ export default async function ProductPage({ params }: Props) {
         <section className="mt-12">
           <h2 className="mb-4 text-xl font-bold">✨ {t.related}</h2>
           <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {related.map((r) => <ProductCard key={String(r._id)} p={r} site={site} base={b} currency={store.currency} f={f} L={t} />)}
+            {related.map((r) => <ProductCard cur={cur} key={String(r._id)} p={r} site={site} base={b} currency={store.currency} f={f} L={t} />)}
           </ul>
         </section>
       )}

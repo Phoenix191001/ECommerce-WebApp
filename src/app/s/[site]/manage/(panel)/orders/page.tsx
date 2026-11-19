@@ -12,9 +12,10 @@ export default async function Orders({ params, searchParams }: { params: Promise
   const { site } = await params;
   const { status = "all", q } = await searchParams;
   const store = await requireStore(site);
-  await requireStaff(store, "orders");
+  const user = await requireStaff(store, "orders", { seller: true });
+  const seller = user.role === "seller" ? user.sellerId : undefined;
   const m = await storeModels(store);
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = seller ? { "items.seller": seller } : {};
   if (status !== "all" && TABS.includes(status)) filter.status = status;
   if (q) {
     const n = Number(q.replace(/\D/g, ""));
@@ -22,7 +23,7 @@ export default async function Orders({ params, searchParams }: { params: Promise
   }
   const [orders, counts] = await Promise.all([
     m.Order.find(filter).sort({ createdAt: -1 }).limit(200).lean(),
-    m.Order.aggregate<{ _id: string; n: number }>([{ $group: { _id: "$status", n: { $sum: 1 } } }]),
+    m.Order.aggregate<{ _id: string; n: number }>([...(seller ? [{ $match: { "items.seller": seller } }] : []), { $group: { _id: "$status", n: { $sum: 1 } } }]),
   ]);
   const cnt = Object.fromEntries(counts.map((c) => [c._id, c.n]));
   const b = `${store.base}/manage`;
@@ -31,7 +32,7 @@ export default async function Orders({ params, searchParams }: { params: Promise
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900">{p.orders}</h1>
-        {store.features["F-50"] && <a href={`${b}/export/orders`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{p.exportCsv}</a>}
+        {store.features["F-50"] && !seller && <a href={`${b}/export/orders`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">{p.exportCsv}</a>}
       </div>
       <div className="flex gap-1 overflow-x-auto">
         {TABS.map((t) => (
@@ -55,7 +56,7 @@ export default async function Orders({ params, searchParams }: { params: Promise
                     <td><Badge tone={o.channel === "pos" ? "violet" : "sky"}>{o.channel === "pos" ? "POS" : p.online}</Badge></td>
                     <td><Badge tone={STATUS_TONE[o.paymentStatus]}>{pText(p, "pay", o.paymentStatus)}</Badge></td>
                     <td><Badge tone={STATUS_TONE[o.status]}>{pStatus(p, o.status)}</Badge></td>
-                    <td className="text-end font-medium">{formatMoney(o.total, store.currency)}</td>
+                    <td className="text-end font-medium">{formatMoney(seller ? o.items.filter((i) => String(i.seller) === String(seller)).reduce((n, i) => n + i.price * i.qty, 0) : o.total, store.currency)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { formatMoney, requireStore } from "@/lib/tenant";
 import { getCurrentUser } from "@/lib/store-auth";
-import { STATUS_STEPS, loadOrderForViewer } from "@/lib/order-view";
+import { STATUS_STEPS, canDownload, loadOrderForViewer } from "@/lib/order-view";
+import { PushOptIn } from "@/components/store/push";
+import { pushConfigured, pushPublicKey } from "@/lib/push";
 import { storePrefs } from "@/lib/store-prefs";
 import { fill, payText, statusText } from "@/lib/i18n";
 import { reorder } from "../../../shop-actions";
@@ -63,8 +65,15 @@ export default async function OrderPage({ params, searchParams }: Props) {
         )}
 
         <ul className="mt-8 divide-y divide-slate-100 text-sm">
-          {o.items.map((i) => (
-            <li key={`${i.product}:${i.variant ?? ""}`} className="flex justify-between py-2"><span>{i.name}{i.variantName ? ` (${i.variantName})` : ""} × {i.qty}</span><span>{fm(i.price * i.qty)}</span></li>
+          {o.items.map((i, idx) => (
+            <li key={idx} className="flex justify-between gap-3 py-2">
+              <span>
+                {i.name}{i.variantName ? ` (${i.variantName})` : ""} × {i.qty}
+                {i.custom?.map((c) => <span key={c.label} className="block text-xs text-slate-500">{c.label}: {c.value}</span>)}
+                {i.bundle?.length ? <span className="block text-xs text-slate-500">🧺 {i.bundle.map((x) => `${x.qty} × ${x.name}`).join(", ")}</span> : null}
+              </span>
+              <span>{fm(i.price * i.qty)}</span>
+            </li>
           ))}
         </ul>
         <dl className="mt-3 space-y-1 border-t border-slate-200 pt-3 text-sm">
@@ -75,13 +84,52 @@ export default async function OrderPage({ params, searchParams }: Props) {
           {o.giftWrapFee > 0 && <div className="flex justify-between"><dt>🎁 {L.giftWrapLine}</dt><dd>{fm(o.giftWrapFee)}</dd></div>}
           {o.pointsDiscount > 0 && <div className="flex justify-between text-emerald-700"><dt>⭐ {L.points} ({o.pointsRedeemed})</dt><dd>−{fm(o.pointsDiscount)}</dd></div>}
           {o.creditUsed > 0 && <div className="flex justify-between text-emerald-700"><dt>💳 {L.storeCredit}</dt><dd>−{fm(o.creditUsed)}</dd></div>}
+          {o.giftCardUsed > 0 && <div className="flex justify-between text-emerald-700"><dt>🎁 {L.giftCardLine}</dt><dd>−{fm(o.giftCardUsed)}</dd></div>}
           <div className="flex justify-between text-base font-bold"><dt>{L.total}</dt><dd className="text-brand">{fm(o.total)}</dd></div>
         </dl>
+        {store.features["F-12"] && o.items.some((i) => i.kind === "digital") && (
+          <div className="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm">
+            <p className="mb-2 font-semibold text-sky-900">{L.downloads}</p>
+            {canDownload(o) ? (
+              <ul className="space-y-2">
+                {o.items.map((i, idx) => i.kind === "digital" && (
+                  <li key={idx}><a href={`${b}/download/${o.number}/${idx}${tq}`} className="btn-brand !py-1.5">⬇️ {L.download}: {i.name}</a></li>
+                ))}
+              </ul>
+            ) : <p className="text-sky-900">{L.downloadAfterConfirm}</p>}
+          </div>
+        )}
+        {store.features["F-32"] && o.items.some((i) => i.kind === "giftcard") && (
+          <div className="mt-6 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm">
+            <p className="mb-2 font-semibold text-violet-900">{L.giftCardsBought}</p>
+            {o.giftCardsIssued.length ? (
+              <ul className="space-y-1 font-mono text-lg tracking-wider text-violet-900">{o.giftCardsIssued.map((c) => <li key={c}>{c}</li>)}</ul>
+            ) : <p className="text-violet-900">{L.giftCardsPending}</p>}
+          </div>
+        )}
+        {store.features["F-99"] && o.shipments?.length > 0 && (
+          <div className="mt-6 rounded-xl bg-slate-50 p-4 text-sm">
+            <p className="mb-2 font-semibold">{L.shipments}</p>
+            <ol className="space-y-2">
+              {o.shipments.map((sh, n) => (
+                <li key={n}>
+                  <b>{fill(L.shipmentN, { n: n + 1 })}</b> · {new Date(sh.at).toLocaleDateString(lang === "ur" ? "ur-PK" : "en-GB", { timeZone: "Asia/Karachi" })}
+                  {sh.courier && <> · {sh.courier}</>}{sh.tracking && <> · {L.tracking}: <span className="font-mono">{sh.tracking}</span></>}
+                  <span className="block text-slate-600">{sh.items.map((x) => `${o.items[x.line]?.name ?? "?"} × ${x.qty}`).join(", ")}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+        {store.features["F-109"] && pushConfigured() && !["delivered", "cancelled", "refunded"].includes(o.status) && (
+          <div className="mt-6"><PushOptIn site={site} publicKey={pushPublicKey()} order={o.number} token={t} L={L} /></div>
+        )}
         <div className="mt-6 grid gap-4 text-sm sm:grid-cols-2">
           <div className="rounded-xl bg-slate-50 p-3">
             <p className="font-semibold">{o.delivery === "pickup" ? L.pickupLabel : L.delivery}</p>
+            {o.delivery === "none" && <p className="text-slate-600">{L.noDeliveryNeeded}</p>}
             <p className="text-slate-600">{o.customer.name} · {o.customer.phone}</p>
-            {o.delivery === "pickup" ? <p className="text-slate-600">{store.settings.pickupAddress || L.collectFromShop}</p> : <p className="text-slate-600">{o.customer.address}, {o.customer.city}</p>}
+            {o.delivery === "pickup" ? <p className="text-slate-600">{store.settings.pickupAddress || L.collectFromShop}</p> : o.delivery === "shipping" ? <p className="text-slate-600">{o.customer.address}, {o.customer.city}</p> : null}
             {o.deliverySlot && <p className="text-slate-600">🕒 {o.deliverySlot}</p>}
             {o.giftWrap && <p className="text-slate-600">{L.giftWrapped}{o.giftMessage ? `: “${o.giftMessage}”` : ""}</p>}
           </div>

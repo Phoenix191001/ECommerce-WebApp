@@ -45,9 +45,11 @@ type CheckoutProps = {
   points?: { balance: number; worth: string } | null;
   credit?: { balance: string } | null;
   t: Dict;
+  needsShipping?: boolean; // false: only downloads / gift cards (F-12, F-32)
+  giftCards?: boolean; // F-32
 };
 
-export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, totalLabel, addresses = [], canSaveAddress, slots = [], giftWrapFee, points, credit, t }: CheckoutProps) {
+export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, totalLabel, addresses = [], canSaveAddress, slots = [], giftWrapFee, points, credit, t, needsShipping = true, giftCards }: CheckoutProps) {
   const [s, a, p] = useActionState<ShopState, FormData>(placeOrder.bind(null, site), undefined);
   const [delivery, setDelivery] = useState<"shipping" | "pickup">("shipping");
   const [addr, setAddr] = useState(defaults);
@@ -64,6 +66,14 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
         <L label={t.email}><input name="email" type="email" required defaultValue={defaults.email} autoComplete="email" className={field} /></L>
       </section>
 
+      {!needsShipping ? (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">2</span> {t.deliverySection}</h2>
+          <input type="hidden" name="delivery" value="shipping" />
+          <p className="rounded-xl bg-sky-50 px-3 py-2 text-sm text-sky-900">{t.noDeliveryNeeded}</p>
+          <L label={t.noteForStore}><input name="note" className={field} /></L>
+        </section>
+      ) : (
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">2</span> {t.deliverySection}</h2>
         {pickup && (
@@ -113,6 +123,7 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
         )}
         <L label={t.noteForStore}><input name="note" className={field} /></L>
       </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold"><span className="bg-brand flex h-7 w-7 items-center justify-center rounded-full text-sm text-white">3</span> {t.payment}</h2>
@@ -124,6 +135,9 @@ export function CheckoutForm({ site, defaults, pickup, pickupAddress, methods, t
             </label>
           ))}
         </div>
+        {giftCards && (
+          <L label={t.giftCardCode}><input name="giftCard" autoComplete="off" placeholder="XXXX-XXXX-XXXX" className={`${field} font-mono uppercase`} /></L>
+        )}
         {(points || credit) && (
           <div className="space-y-2 rounded-xl bg-slate-50 p-3 text-sm">
             {points && points.balance > 0 && <label className="flex items-center gap-2"><input type="checkbox" name="usePoints" value="1" /> {fill(t.usePoints, { n: points.balance, amount: points.worth })}</label>}

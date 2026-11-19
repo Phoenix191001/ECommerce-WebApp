@@ -8,7 +8,7 @@ import { getStore, storeModels, formatMoney } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { nextOrderNumber } from "@/lib/models/tenant";
 import { findVariant, unitPrice } from "@/lib/pricing";
-import { linesOf, reserveStock } from "@/lib/stock";
+import { forceTakeStock, linesOf, mergeLines, reserveStock } from "@/lib/stock";
 import { fireWebhook } from "@/lib/webhooks";
 
 export type PosResult = { error?: string; ok?: string; number?: number; needsPin?: boolean; report?: ShiftReport };
@@ -57,8 +57,19 @@ export async function closeShift(site: string, _: PosResult | undefined, form: F
   };
 }
 
-export async function posSale(site: string, lines: { id: string; variant?: string; qty: number }[], tendered: number): Promise<PosResult> {
+export async function posSale(
+  site: string,
+  lines: { id: string; variant?: string; qty: number }[],
+  tendered: number,
+  offline?: { id: string; at: string },
+): Promise<PosResult> {
   const { store, user, m } = await ctx(site);
+  // F-85: a sale rung up while offline is synced once; a repeat of the same id is a no-op.
+  const clientId = offline && store.features["F-85"] && /^[\w-]{8,64}$/.test(offline.id) ? offline.id : undefined;
+  if (clientId) {
+    const done = await m.Order.findOne({ posClientId: clientId }, { number: 1 }).lean();
+    if (done) return { ok: `Sale #${done.number} was already synced.`, number: done.number };
+  }
   const shift = store.features["F-36"] ? await openShiftOf(m, user._id) : null;
   if (store.features["F-36"] && !shift) return { error: "Open a shift before selling." };
   const clean = lines
@@ -80,6 +91,8 @@ export async function posSale(site: string, lines: { id: string; variant?: strin
         price: unitPrice(p, v ? String(v._id) : undefined, l.qty, { features: store.features }).price,
         qty: l.qty,
         cost: p.costPrice ?? 0,
+        kind: p.kind,
+        bundle: store.features["F-13"] && p.bundle?.length ? p.bundle : undefined,
       };
     });
   const subtotal = items.reduce((n, i) => n + i.price * i.qty, 0);
@@ -88,18 +101,23 @@ export async function posSale(site: string, lines: { id: string; variant?: strin
   if (!(tendered >= total)) return { error: `Cash received must be at least ${formatMoney(total, store.currency)}.` };
 
   if (store.features["F-17"]) {
-    const r = await reserveStock(m, linesOf(items));
-    if (r.short) return { error: `Not enough stock of ${r.short}.` };
+    if (clientId) await forceTakeStock(m, mergeLines(linesOf(items))); // the goods already left the shop
+    else {
+      const r = await reserveStock(m, mergeLines(linesOf(items)));
+      if (r.short) return { error: `Not enough stock of ${r.short}.` };
+    }
   }
+  const soldAt = clientId && !isNaN(Date.parse(offline!.at)) ? new Date(offline!.at) : null;
   const number = await nextOrderNumber(m);
   await m.Order.create({
     number, channel: "pos", cashier: user._id, shift: shift?._id,
     customer: { name: "", email: "", phone: "", address: "", city: "" },
     delivery: "pickup", items, subtotal, discount: 0, shipping: 0, tax, total,
     paymentMethod: "cash", paymentStatus: "paid", status: "delivered",
-    history: [{ status: "delivered", at: new Date(), by: user.name, note: `POS sale · cash ${tendered}, change ${tendered - total}` }],
+    history: [{ status: "delivered", at: soldAt ?? new Date(), by: user.name, note: `POS sale · cash ${tendered}, change ${tendered - total}${soldAt ? " · rung up offline" : ""}` }],
     trackingToken: crypto.randomBytes(16).toString("base64url"),
-    note: `Cash ${tendered} · change ${tendered - total}`,
+    note: `Cash ${tendered} · change ${tendered - total}${soldAt ? ` · sold offline at ${soldAt.toLocaleString("en-GB", { timeZone: "Asia/Karachi" })}` : ""}`,
+    posClientId: clientId,
   });
   if (shift) {
     shift.cashSales += total;

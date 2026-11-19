@@ -8,13 +8,18 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { Types } from "mongoose";
 import { getStore, priceOrder, storeModels, formatMoney, type StoreContext } from "@/lib/tenant";
-import { cartCookie, evaluateDiscount, findCart, viewCart } from "@/lib/cart";
+import { cartCookie, evaluateDiscount, findCart, keyOf, lineKey, loadParts, sellableStock, viewCart } from "@/lib/cart";
 import { createStoreSession, destroyStoreSession, getCurrentUser, getStoreSession } from "@/lib/store-auth";
 import { loginAs, type LoginResult } from "@/lib/store-login";
 import { nextOrderNumber } from "@/lib/models/tenant";
 import { esc, sendEmail } from "@/lib/email";
-import { findVariant, hasVariants, isPublished, stockOf } from "@/lib/pricing";
-import { linesOf, reserveStock } from "@/lib/stock";
+import { findVariant, hasVariants, isPublished } from "@/lib/pricing";
+import { linesOf, mergeLines, reserveStock } from "@/lib/stock";
+import { redeemGiftCard, checkGiftCard } from "@/lib/giftcards";
+import { affiliateForOrder } from "@/lib/affiliates";
+import { abBucket, recordConversion } from "@/lib/ab";
+import { displayCurrency } from "@/lib/currency";
+import { alertApps } from "@/lib/app-alerts";
 import { scoreOrder } from "@/lib/risk";
 import { fireWebhook } from "@/lib/webhooks";
 import { newTotpSecret, verifyTotp } from "@/lib/totp";
@@ -37,7 +42,7 @@ async function customerOrLogin(s: StoreContext) {
 
 // ---------- Cart ----------
 
-export async function addToCart(site: string, productId: string, qty = 1, variantId?: string): Promise<ShopState> {
+export async function addToCart(site: string, productId: string, qty = 1, variantId?: string, customIn?: Record<string, string>): Promise<ShopState> {
   const s = await store(site);
   if (!s.features["F-01"]) return { error: "The catalog is turned off." };
   if (!Types.ObjectId.isValid(productId)) return { error: "Unknown product." };
@@ -50,10 +55,22 @@ export async function addToCart(site: string, productId: string, qty = 1, varian
     if (!v) return { error: `Choose ${p.optionNames?.length ? p.optionNames.join(" and ").toLowerCase() : "an option"} first.` };
     vid = String(v._id);
   }
+  // F-63: personalisation text the shopper typed (engraving, name on a shirt…)
+  let custom: { label: string; value: string }[] | undefined;
+  if ((s.features["F-63"] || (s.features["F-32"] && p.kind === "giftcard")) && p.customFields?.length) {
+    custom = [];
+    for (const cf of p.customFields) {
+      const value = String(customIn?.[cf.label] ?? "").trim().slice(0, Math.max(1, cf.maxLength || 100));
+      if (cf.required && !value) return { error: `Fill in "${cf.label}" first.` };
+      if (value) custom.push({ label: cf.label, value });
+    }
+    if (!custom.length) custom = undefined;
+  }
   const cart = (await findCart(s, true))!;
-  const ex = cart.items.find((i) => String(i.product) === productId && String(i.variant ?? "") === (vid ?? ""));
+  const key = lineKey(productId, vid, custom);
+  const ex = cart.items.find((i) => keyOf(i) === key);
   const want = (ex?.qty ?? 0) + Math.max(1, Math.min(99, Math.floor(qty)));
-  const stock = stockOf(p, vid);
+  const stock = sellableStock(p, vid, await loadParts(s, [p]), s.features);
   if (s.features["F-17"] && want > stock)
     return { error: stock > 0 ? `Only ${stock} left in stock.` : "Sorry, this is out of stock." };
   if (ex) ex.qty = want;
@@ -65,6 +82,7 @@ export async function addToCart(site: string, productId: string, qty = 1, varian
       name: p.name,
       price: p.price,
       qty: want,
+      custom,
     });
   await cart.save();
   refresh(s);
@@ -76,8 +94,7 @@ export async function setCartQty(site: string, key: string, qty: number) {
   const s = await store(site);
   const cart = await findCart(s);
   if (!cart) return;
-  const [pid, vid] = key.split(":");
-  const match = (i: { product: unknown; variant?: unknown }) => String(i.product) === pid && String(i.variant ?? "") === (vid ?? "");
+  const match = (i: Parameters<typeof keyOf>[0]) => keyOf(i) === key;
   const it = cart.items.find(match);
   if (!it) return;
   if (qty <= 0) cart.items = cart.items.filter((i) => !match(i));
@@ -123,6 +140,7 @@ const checkoutSchema = z.object({
   usePoints: z.string().optional(),
   useCredit: z.string().optional(),
   saveAddress: z.string().optional(),
+  giftCard: z.string().trim().max(40).optional().default(""),
 });
 
 export async function placeOrder(site: string, _: ShopState, form: FormData): Promise<ShopState> {
@@ -134,18 +152,20 @@ export async function placeOrder(site: string, _: ShopState, form: FormData): Pr
   const user = await getCurrentUser(s);
   const customer = user?.role === "customer" ? user : null;
   if (!customer && !f["F-19"]) return { error: "Please sign in or create an account to check out." };
-  if (d.delivery === "shipping" && (!d.address || !d.city)) return { error: "Enter your delivery address and city." };
-  if (d.delivery === "pickup" && !f["F-59"]) return { error: "Pickup isn't available in this store." };
-  if (d.payment === "cod" && !f["F-23"]) return { error: "Cash on delivery isn't available. Choose another payment method." };
-  if (d.payment !== "cod") return { error: "Online payment isn't set up for this store yet. Please choose cash on delivery." };
-  if (f["F-60"] && d.delivery === "shipping" && s.settings.deliverySlots.length && !s.settings.deliverySlots.includes(d.slot))
-    return { error: "Choose a delivery time slot." };
-
   const cart = await findCart(s);
   const view = await viewCart(s);
   if (!cart || !view.items.length) return { error: "Your cart is empty." };
+  // Downloads and gift cards need no delivery (F-12, F-32).
+  const delivery: "shipping" | "pickup" | "none" = view.needsShipping ? d.delivery : "none";
+  if (delivery === "shipping" && (!d.address || !d.city)) return { error: "Enter your delivery address and city." };
+  if (delivery === "pickup" && !f["F-59"]) return { error: "Pickup isn't available in this store." };
+  if (d.payment === "cod" && !f["F-23"]) return { error: "Cash on delivery isn't available. Choose another payment method." };
+  if (d.payment !== "cod") return { error: "Online payment isn't set up for this store yet. Please choose cash on delivery." };
+  if (f["F-60"] && delivery === "shipping" && s.settings.deliverySlots.length && !s.settings.deliverySlots.includes(d.slot))
+    return { error: "Choose a delivery time slot." };
+
   const disc = await evaluateDiscount(s, view.discountCode, view.subtotal);
-  const base = priceOrder(s, view.subtotal, disc.amount, d.delivery);
+  const base = priceOrder(s, view.subtotal, disc.amount, delivery);
   const m = await storeModels(s);
 
   // Extras on top of the priced order.
@@ -164,11 +184,29 @@ export async function placeOrder(site: string, _: ShopState, form: FormData): Pr
     creditUsed = Math.min(total, customer.storeCredit);
     total -= creditUsed;
   }
+  // F-32: pay part or all of the order with a gift card.
+  let giftCardCode: string | undefined;
+  let giftCardUsed = 0;
+  if (f["F-32"] && d.giftCard) {
+    const g = await checkGiftCard(m, d.giftCard);
+    if (g.error) return { error: g.error };
+    if (view.items.some((i) => i.kind === "giftcard")) return { error: "A gift card can't be used to buy another gift card." };
+    giftCardCode = g.code;
+    giftCardUsed = Math.min(total, g.balance!);
+  }
 
   // F-17 / F-101: reserve stock atomically (per variant); roll back if any item is short.
   if (f["F-17"]) {
-    const r = await reserveStock(m, linesOf(view.items));
+    const r = await reserveStock(m, mergeLines(linesOf(view.items)));
     if (r.short) return { error: `Sorry, there isn't enough stock of ${r.short}. Lower the quantity and try again.` };
+  }
+  if (giftCardCode && giftCardUsed > 0) {
+    const ok = await redeemGiftCard(m, giftCardCode, giftCardUsed, "checkout");
+    if (!ok) {
+      if (f["F-17"]) await (await import("@/lib/stock")).releaseStock(m, mergeLines(linesOf(view.items)));
+      return { error: "That gift card's balance just changed. Try again." };
+    }
+    total -= giftCardUsed;
   }
   if (disc.code) await m.Discount.updateOne({ code: disc.code }, { $inc: { used: 1 } });
   if (customer && (pointsRedeemed || creditUsed)) {
@@ -191,13 +229,21 @@ export async function placeOrder(site: string, _: ShopState, form: FormData): Pr
     (await m.Product.find({ _id: { $in: view.items.map((i) => i.product) } }, { costPrice: 1 }).lean()).map((p) => [String(p._id), p.costPrice ?? 0]),
   );
   const number = await nextOrderNumber(m);
+  if (giftCardCode && giftCardUsed)
+    await m.GiftCard.updateOne({ code: giftCardCode }, { $set: { "history.$[h].orderNumber": number } }, { arrayFilters: [{ "h.orderNumber": { $exists: false }, "h.amount": -giftCardUsed, "h.by": "checkout" }] }).catch(() => {});
+  const aff = f["F-71"] ? await affiliateForOrder(s, m, customer?._id, view.subtotal - disc.amount) : null;
+  const ab = f["F-78"] ? await abBucket() : undefined;
+  const cur = f["F-55"] ? await displayCurrency(s) : null;
+  const sellers = f["F-67"]
+    ? new Map((await m.Product.find({ _id: { $in: view.items.map((i) => i.product) }, seller: { $exists: true } }, { seller: 1 }).lean()).map((p) => [String(p._id), p.seller]))
+    : new Map();
   const trackingToken = crypto.randomBytes(16).toString("base64url");
   const order = await m.Order.create({
     number,
     channel: "online",
     user: customer?._id,
     customer: { name: d.name, email: d.email, phone: d.phone, address: d.address, city: d.city },
-    delivery: d.delivery,
+    delivery,
     items: view.items.map((i) => ({
       product: new Types.ObjectId(i.product),
       variant: i.variant ? new Types.ObjectId(i.variant) : undefined,
@@ -206,6 +252,10 @@ export async function placeOrder(site: string, _: ShopState, form: FormData): Pr
       price: i.price,
       qty: i.qty,
       cost: costs.get(i.product) ?? 0,
+      kind: i.kind,
+      custom: i.custom,
+      bundle: i.bundle?.map((b) => ({ product: new Types.ObjectId(b.product), qty: b.qty, name: b.name })),
+      seller: sellers.get(i.product),
     })),
     ...base,
     total,
@@ -213,14 +263,21 @@ export async function placeOrder(site: string, _: ShopState, form: FormData): Pr
     giftWrap,
     giftWrapFee,
     giftMessage: giftWrap ? d.giftMessage : "",
-    deliverySlot: f["F-60"] && d.delivery === "shipping" ? d.slot : "",
+    deliverySlot: f["F-60"] && delivery === "shipping" ? d.slot : "",
+    giftCardCode,
+    giftCardUsed,
+    affiliate: aff?.code,
+    commission: aff?.commission ?? 0,
+    abVariant: ab,
+    displayCurrency: cur?.code,
+    displayRate: cur?.rate,
     pointsRedeemed,
     pointsDiscount,
     creditUsed,
     riskScore: risk.score,
     riskReasons: risk.reasons,
     paymentMethod: "cod",
-    paymentStatus: "unpaid",
+    paymentStatus: total <= 0 ? "paid" : "unpaid",
     status: "pending",
     history: [{ status: "pending", at: new Date(), note: "Order placed" }],
     trackingToken,
@@ -229,6 +286,7 @@ export async function placeOrder(site: string, _: ShopState, form: FormData): Pr
   cart.items = [];
   cart.discountCode = undefined;
   await cart.save();
+  if (ab) await recordConversion(m, ab, total).catch(() => {});
 
   if (f["F-41"]) {
     const rows = order.items
@@ -242,6 +300,7 @@ export async function placeOrder(site: string, _: ShopState, form: FormData): Pr
     );
   }
   await fireWebhook(s, "order.created", { number, total, items: order.items.length, customer: { name: d.name, city: d.city } }).catch(() => {});
+  await alertApps(s, { number, total, customer: { name: d.name, city: d.city }, items: order.items }).catch(() => {});
   redirect(`${s.base}/order/${number}?t=${trackingToken}&new=1`);
 }
 
@@ -520,6 +579,123 @@ export async function setLanguage(site: string, lang: "en" | "ur") {
   const s = await store(site);
   (await cookies()).set(`lang_${s.id}`, lang === "ur" ? "ur" : "en", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
   refresh(s);
+}
+
+/** F-109: save this browser's push subscription for an order's updates and/or store offers. */
+export async function subscribePush(
+  site: string,
+  sub: { endpoint: string; p256dh: string; auth: string },
+  opts: { order?: number; token?: string; marketing?: boolean },
+): Promise<{ ok: boolean }> {
+  const s = await store(site);
+  if (!s.features["F-109"]) return { ok: false };
+  if (!/^https:\/\/\S{10,1000}$/.test(sub.endpoint) || !sub.p256dh || !sub.auth || sub.p256dh.length > 200 || sub.auth.length > 100) return { ok: false };
+  const m = await storeModels(s);
+  const user = await getCurrentUser(s);
+  let order: number | undefined;
+  if (opts.order) {
+    const o = await m.Order.findOne({ number: opts.order }, { trackingToken: 1, user: 1 }).lean();
+    const mine = o && ((opts.token && opts.token === o.trackingToken) || (user && o.user && String(o.user) === String(user._id)));
+    if (!mine) return { ok: false };
+    order = opts.order;
+  }
+  await m.PushSub.updateOne(
+    { endpoint: sub.endpoint },
+    {
+      $set: { p256dh: sub.p256dh, auth: sub.auth, ...(user?.role === "customer" ? { user: user._id } : {}), ...(opts.marketing ? { marketing: true } : {}) },
+      ...(order ? { $addToSet: { orders: order } } : {}),
+    },
+    { upsert: true },
+  );
+  return { ok: true };
+}
+
+/** F-108: the customer's birthday (month and day only). */
+export async function saveBirthday(site: string, _: ShopState, form: FormData): Promise<ShopState> {
+  const s = await store(site);
+  if (!s.features["F-108"]) return { error: "Birthday rewards are off." };
+  const u = await customerOrLogin(s);
+  const mm = Math.floor(Number(form.get("month"))), dd = Math.floor(Number(form.get("day")));
+  if (!(mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31)) return { error: "Choose the month and day." };
+  if (u.birthday) return { error: "Your birthday is already saved. Contact the store to change it." };
+  const m = await storeModels(s);
+  await m.User.updateOne({ _id: u._id }, { $set: { birthday: `${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}` } });
+  refresh(s);
+  return { ok: "Saved. 🎂" };
+}
+
+/** F-71: a customer applies to be an affiliate; the owner approves. */
+export async function applyAffiliate(site: string): Promise<ShopState> {
+  const s = await store(site);
+  if (!s.features["F-71"]) return { error: "The affiliate program is off." };
+  const u = await customerOrLogin(s);
+  const m = await storeModels(s);
+  if (await m.Affiliate.exists({ user: u._id })) return { ok: "You've already applied." };
+  const base = u.name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) || "AFF";
+  let code = `${base}${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+  while (await m.Affiliate.exists({ code })) code = `${base}${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+  await m.Affiliate.create({ name: u.name, email: u.email, code, rate: s.settings.affiliateRate, status: "pending", user: u._id, statsKey: crypto.randomBytes(12).toString("base64url") });
+  refresh(s);
+  return { ok: "Thanks! The store will review your application." };
+}
+
+/** F-55: show prices in another currency the store lists ("" = store currency). */
+export async function setCurrency(site: string, code: string) {
+  const s = await store(site);
+  const jar = await cookies();
+  if (s.features["F-55"] && s.settings.currencies.some((c) => c.code === code)) jar.set(`cur_${s.id}`, code, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+  else jar.delete(`cur_${s.id}`);
+  refresh(s);
+}
+
+// ---------- Live chat (F-45) ----------
+
+export type ChatView = { messages: { from: "visitor" | "staff"; name: string; text: string; at: string }[]; status: "open" | "closed"; started: boolean } | null;
+
+const chatCookie = (s: StoreContext) => `chat_${s.id}`;
+
+async function chatThread(s: StoreContext) {
+  const v = (await cookies()).get(chatCookie(s))?.value;
+  if (!v || !/^[\w-]{16,64}$/.test(v)) return null;
+  return (await storeModels(s)).Chat.findOne({ visitor: v }).sort({ lastAt: -1 });
+}
+
+const chatOut = (t: Awaited<ReturnType<typeof chatThread>>): ChatView =>
+  t ? { started: true, status: t.status, messages: t.messages.slice(-100).map((x) => ({ from: x.from, name: x.name, text: x.text, at: new Date(x.at).toISOString() })) } : { started: false, status: "open", messages: [] };
+
+export async function chatPoll(site: string): Promise<ChatView> {
+  const s = await store(site);
+  if (!s.features["F-45"]) return null;
+  return chatOut(await chatThread(s));
+}
+
+export async function chatSend(site: string, text: string, who?: { name?: string; email?: string }): Promise<(NonNullable<ChatView> & { error?: string }) | null> {
+  const s = await store(site);
+  if (!s.features["F-45"]) return null;
+  const msg = String(text ?? "").trim().slice(0, 1000);
+  if (!msg) return { ...chatOut(await chatThread(s))!, error: "Write a message first." };
+  const m = await storeModels(s);
+  let t = await chatThread(s);
+  if (t && t.messages.length >= 300) return { ...chatOut(t)!, error: "This chat is full. Please email the store." };
+  if (t && t.messages.slice(-10).filter((x) => x.from === "visitor" && Date.now() - new Date(x.at).getTime() < 60_000).length >= 8)
+    return { ...chatOut(t)!, error: "Slow down a little, please." };
+  const user = await getCurrentUser(s);
+  const name = (user?.role === "customer" ? user.name : String(who?.name ?? "").trim().slice(0, 60)) || "Visitor";
+  if (!t) {
+    const visitor = crypto.randomBytes(18).toString("base64url");
+    (await cookies()).set(chatCookie(s), visitor, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+    const email = user?.role === "customer" ? user.email : String(who?.email ?? "").trim().toLowerCase().slice(0, 120);
+    t = await m.Chat.create({
+      visitor, name, email: z.email().safeParse(email).success ? email : "", user: user?.role === "customer" ? user._id : undefined,
+      messages: [{ from: "staff", name: s.name, text: s.settings.chatGreeting || "Hi! How can we help?", at: new Date() }],
+    });
+  }
+  t.messages.push({ from: "visitor", name, text: msg, at: new Date() });
+  t.status = "open";
+  t.unread = true;
+  t.lastAt = new Date();
+  await t.save();
+  return chatOut(t)!;
 }
 
 export async function setTheme(site: string, theme: "light" | "dark") {

@@ -69,16 +69,19 @@ const ROLE_PERMS: Record<StoreRole, Permission[]> = {
   owner: ["features", "staff", "catalog", "orders", "discounts", "pos", "reports", "settings", "customers"],
   manager: ["staff", "catalog", "orders", "discounts", "pos", "reports", "customers"],
   cashier: ["pos"],
+  seller: ["catalog", "orders"], // F-67: marketplace sellers see only their own products and order lines
   customer: [],
 };
 
 export const can = (role: StoreRole | undefined, p: Permission) => !!role && ROLE_PERMS[role].includes(p);
-export const isStaff = (role?: StoreRole) => role === "owner" || role === "manager" || role === "cashier";
+export const isStaff = (role?: StoreRole) => role === "owner" || role === "manager" || role === "cashier" || role === "seller";
 
 /** Gate a staff page or action. Redirects to the staff sign-in page when signed out. */
-export async function requireStaff(store: StoreContext, perm?: Permission): Promise<CurrentUser> {
+export async function requireStaff(store: StoreContext, perm?: Permission, opts?: { seller?: boolean }): Promise<CurrentUser> {
   const user = await getCurrentUser(store);
   if (!user || !isStaff(user.role)) redirect(`${store.base}/manage/login`);
+  // F-67: marketplace sellers only reach the pages and actions that opt in (their products, orders and earnings).
+  if (user.role === "seller" && (!store.features["F-67"] || (perm && !opts?.seller))) redirect(`${store.base}/manage/products`);
   if (perm && !can(user.role, perm)) redirect(`${store.base}/manage`);
   return user;
 }

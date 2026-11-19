@@ -3,16 +3,18 @@
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  addAddress, askQuestion, confirmCustomerTwoFactor, notifyWhenBack, openTicket, replyTicket, requestReturn,
-  setLanguage, setTheme, subscribe, type ShopState,
+  addAddress, applyAffiliate, askQuestion, confirmCustomerTwoFactor, notifyWhenBack, openTicket, replyTicket, requestReturn,
+  saveBirthday, setCurrency, setLanguage, setTheme, subscribe, type ShopState,
 } from "@/app/s/[site]/shop-actions";
 import { KeepForm } from "@/components/keep-form";
 import { AddToCart } from "./cart";
 import { field } from "./forms";
 import { fill, type Dict } from "@/lib/i18n";
+import { showMoney } from "@/lib/money";
 
 const money = (n: number, c: string) =>
   new Intl.NumberFormat("en-PK", { style: "currency", currency: c, maximumFractionDigits: 0 }).format(n);
+
 
 function Msg({ s }: { s: ShopState }) {
   if (s?.error) return <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{s.error}</p>;
@@ -26,12 +28,16 @@ type V = { id: string; name: string; price: number; stock: number };
 
 /** F-02 variant picker with price, stock and add-to-cart; F-14 back-in-stock signup when sold out. */
 export function BuyBox({
-  site, product, variants, optionLabel, basePrice, baseStock, trackStock, lowAt, currency, alerts, L,
+  site, product, variants, optionLabel, basePrice, baseStock, trackStock, lowAt, currency, alerts, L, customFields = [], fmt,
 }: {
   site: string; product: string; variants: V[]; optionLabel: string; basePrice: number; baseStock: number;
   trackStock: boolean; lowAt: number; currency: string; alerts: boolean; L: Dict;
+  customFields?: { label: string; required: boolean; maxLength: number }[];
+  /** F-55: display currency, as { code, rate } */
+  fmt?: { code: string; rate: number } | null;
 }) {
   const [vid, setVid] = useState<string | undefined>(variants.find((v) => v.stock > 0)?.id ?? variants[0]?.id);
+  const [custom, setCustom] = useState<Record<string, string>>({});
   const v = variants.find((x) => x.id === vid);
   const price = v ? v.price : basePrice;
   const stock = v ? v.stock : baseStock;
@@ -39,7 +45,7 @@ export function BuyBox({
   const low = trackStock && stock > 0 && stock <= lowAt;
   return (
     <div className="space-y-4">
-      <p className="text-3xl font-bold text-brand" aria-live="polite">{money(price, currency)}</p>
+      <p className="text-3xl font-bold text-brand" aria-live="polite">{fmt ? showMoney(price, currency, fmt) : money(price, currency)}</p>
       {variants.length > 0 && (
         <fieldset>
           <legend className="mb-2 text-sm font-medium">{L.chooseOption} {optionLabel}</legend>
@@ -63,7 +69,22 @@ export function BuyBox({
           {out ? L.outOfStock : low ? fill(L.onlyLeft, { n: stock }) : L.inStock}
         </p>
       )}
-      <AddToCart site={site} product={product} variant={vid} disabled={out} full L={L} />
+      {customFields.length > 0 && (
+        <div className="space-y-2 rounded-2xl bg-white p-3 shadow-sm">
+          {customFields.map((c) => (
+            <label key={c.label} className="block space-y-1 text-sm">
+              <span className="font-medium">{c.label}{c.required && <span className="text-rose-600"> *</span>}</span>
+              <input
+                value={custom[c.label] ?? ""}
+                maxLength={c.maxLength}
+                onChange={(e) => setCustom((x) => ({ ...x, [c.label]: e.target.value }))}
+                className={field}
+              />
+            </label>
+          ))}
+        </div>
+      )}
+      <AddToCart site={site} product={product} variant={vid} custom={customFields.length ? custom : undefined} disabled={out} full L={L} />
       {out && alerts && <StockAlertForm key={vid ?? "p"} site={site} product={product} variant={vid} L={L} />}
     </div>
   );
@@ -270,4 +291,50 @@ export function RecordView({ storeId, product }: { storeId: string; product: str
     document.cookie = `${name}=${encodeURIComponent(list.join(","))}; path=/; max-age=2592000; samesite=lax`;
   }, [storeId, product]);
   return null;
+}
+
+/** F-108: month and day of the customer's birthday. */
+export function BirthdayForm({ site, L }: { site: string; L: Dict }) {
+  const [s, a, p] = useActionState<ShopState, FormData>(saveBirthday.bind(null, site), undefined);
+  return (
+    <KeepForm action={a} className="flex flex-wrap items-end gap-2">
+      <select name="month" required defaultValue="" className={`${field} !w-auto`} aria-label="Month">
+        <option value="" disabled>Month</option>
+        {Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>{new Date(2000, i, 1).toLocaleString("en-GB", { month: "long" })}</option>)}
+      </select>
+      <input name="day" type="number" min={1} max={31} required placeholder="Day" aria-label="Day" className={`${field} !w-24`} />
+      <button className="btn-brand !py-2" disabled={p}>{L.save}</button>
+      <div className="w-full"><Msg s={s} /></div>
+    </KeepForm>
+  );
+}
+
+/** F-71: apply to the store's affiliate program. */
+export function AffiliateApply({ site, L }: { site: string; L: Dict }) {
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<ShopState>(undefined);
+  const router = useRouter();
+  return (
+    <div className="space-y-2">
+      <button className="btn-brand !py-2" disabled={pending} onClick={() => start(async () => { setMsg(await applyAffiliate(site)); router.refresh(); })}>{L.affJoin}</button>
+      <Msg s={msg} />
+    </div>
+  );
+}
+
+/** F-55: pick the currency prices are shown in. */
+export function CurrencyPicker({ site, base, current, options }: { site: string; base: string; current: string; options: string[] }) {
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  return (
+    <select
+      value={current || base}
+      disabled={pending}
+      onChange={(e) => start(async () => { await setCurrency(site, e.target.value === base ? "" : e.target.value); router.refresh(); })}
+      className="rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-600"
+      aria-label="Currency"
+    >
+      {[base, ...options].map((c) => <option key={c} value={c}>{c}</option>)}
+    </select>
+  );
 }

@@ -3,6 +3,7 @@ import { requireStore, storeModels } from "@/lib/tenant";
 import { storePrefs } from "@/lib/store-prefs";
 import { visibleFilter } from "@/lib/pricing";
 import { ProductCard } from "@/components/store/product-card";
+import { displayCurrency } from "@/lib/currency";
 
 // F-07 brand pages.
 export default async function BrandPage({ params }: { params: Promise<{ site: string; brand: string }> }) {
@@ -11,6 +12,7 @@ export default async function BrandPage({ params }: { params: Promise<{ site: st
   const store = await requireStore(site);
   if (!store.features["F-07"] || !store.features["F-01"]) notFound();
   const { t } = await storePrefs(store);
+  const cur = await displayCurrency(store);
   const products = await (await storeModels(store)).Product.find({ $and: [visibleFilter(store.features), { brand }] }).sort({ createdAt: -1 }).limit(120).lean();
   if (!products.length) notFound();
   return (
@@ -21,7 +23,7 @@ export default async function BrandPage({ params }: { params: Promise<{ site: st
         <p className="mt-1 text-white/85">{products.length} products</p>
       </div>
       <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {products.map((p) => <ProductCard key={String(p._id)} p={p} site={site} base={store.base} currency={store.currency} f={store.features} L={t} />)}
+        {products.map((p) => <ProductCard cur={cur} key={String(p._id)} p={p} site={site} base={store.base} currency={store.currency} f={store.features} L={t} />)}
       </ul>
     </main>
   );
