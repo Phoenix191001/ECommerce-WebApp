@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --import tsx --test tests/unit/*.test.ts",
-    "test:e2e": "node tests/e2e/e2e.cjs"
+    "test:e2e": "node tests/e2e/e2e.cjs",
+    "test:e2e:s4": "node tests/e2e/section4.cjs"
   },
   "dependencies": {
     "@vercel/blob": "^2.9.0",
