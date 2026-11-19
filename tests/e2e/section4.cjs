@@ -434,9 +434,8 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       await cp.getByLabel("Month").selectOption(String(month));
       await cp.getByLabel("Day", { exact: true }).fill("15");
       await cp.getByRole("button", { name: "Save" }).click();
-      await cp.getByText("Your birthday").waitFor({ state: "detached" }); // the form goes once it's saved
+      await see(cp, "Happy birthday!"); // given as soon as the page refreshes after saving
       await cp.reload();
-      await see(cp, "Happy birthday!");
       await cp.getByText("200", { exact: true }).waitFor();
     });
 
