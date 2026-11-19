@@ -434,10 +434,10 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       await cp.getByLabel("Month").selectOption(String(month));
       await cp.getByLabel("Day", { exact: true }).fill("15");
       await cp.getByRole("button", { name: "Save" }).click();
-      await see(cp, "Saved.");
+      await cp.getByText("Your birthday").waitFor({ state: "detached" }); // the form goes once it's saved
       await cp.reload();
       await see(cp, "Happy birthday!");
-      await see(cp, "200");
+      await cp.getByText("200", { exact: true }).waitFor();
     });
 
     await step("push page explains when keys are missing", async () => {

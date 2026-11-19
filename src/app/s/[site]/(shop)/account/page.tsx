@@ -30,6 +30,7 @@ export default async function AccountPage({ params }: { params: Promise<{ site: 
   const b = store.base;
   const fm = (n: number) => formatMoney(n, store.currency);
   const gifts = await celebrate(store, m, user);
+  user.loyaltyPoints = (user.loyaltyPoints ?? 0) + gifts.reduce((n, g) => n + g.points, 0); // show the points just given
   const aff = f["F-71"] ? await m.Affiliate.findOne({ user: user._id }).lean() : null;
   const affT = aff?.status === "active" ? (await affiliateTotals(m)).get(aff.code) : undefined;
   const root = store.customDomain ? `https://${store.customDomain}` : storeUrl(store.subdomain);
