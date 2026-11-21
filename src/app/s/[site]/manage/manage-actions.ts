@@ -25,6 +25,7 @@ import { parseCsv } from "@/lib/csv";
 import { issueOrderGiftCards, refundGiftCard } from "@/lib/giftcards";
 import { notifyOrderPush } from "@/lib/push";
 import { cleanBlocks } from "@/lib/blocks";
+import { isLang } from "@/lib/languages";
 
 export type MState = { error?: string; ok?: string } | undefined;
 export type SecretState = { error?: string; ok?: string; key?: string; secret?: string } | undefined;
@@ -81,10 +82,10 @@ export async function staffLogout(site: string) {
   redirect(`${store.base}/manage/login`);
 }
 
-export async function setPanelLanguage(site: string, lang: "en" | "ur") {
+export async function setPanelLanguage(site: string, lang: string) {
   const store = await getStore(site);
   if (!store) return;
-  (await cookies()).set(`plang_${store.id}`, lang === "ur" ? "ur" : "en", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+  (await cookies()).set(`plang_${store.id}`, isLang(lang) ? lang : "en", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
   revalidatePath(`${store.base}/manage`, "layout");
 }
 

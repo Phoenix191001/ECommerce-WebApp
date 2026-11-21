@@ -9,6 +9,7 @@ import { issueGiftCard } from "@/lib/giftcards";
 import { broadcastPush, pushConfigured } from "@/lib/push";
 import { APP_MAP } from "@/lib/apps";
 import { alertApps } from "@/lib/app-alerts";
+import { LANG_CODES, isLang } from "@/lib/languages";
 
 type S = { error?: string; ok?: string } | undefined;
 const off = (id: string, name: string): S => ({ error: `${name} (${id}) is turned off. Turn it on in Features first.` });
@@ -257,4 +258,19 @@ export async function saveChatGreeting(site: string, _: S, form: FormData): Prom
   await saveStoreSettings(store, { chatGreeting });
   await auditLog(store, actorOf(user), "settings.chat", undefined, undefined, chatGreeting);
   return { ok: "Saved." };
+}
+
+// ---------- Storefront languages (F-16) ----------
+
+export async function saveLanguages(site: string, _: S, form: FormData): Promise<S> {
+  const { store, user } = await staffCtx(site, "settings");
+  if (!store.features["F-16"]) return off("F-16", "Multi-language storefront");
+  const picked = form.getAll("languages").map(String).filter(isLang);
+  const languages = LANG_CODES.filter((c) => c === "en" || picked.includes(c));
+  const d = String(form.get("defaultLang") ?? "en");
+  const defaultLang = isLang(d) && languages.includes(d) ? d : "en";
+  await saveStoreSettings(store, { languages, defaultLang });
+  await auditLog(store, actorOf(user), "settings.languages", undefined, store.settings.languages, languages);
+  refreshStore(store);
+  return { ok: `Shoppers can choose: ${languages.length} language(s).` };
 }

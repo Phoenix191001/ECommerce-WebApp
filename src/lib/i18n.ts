@@ -77,7 +77,7 @@ const en = {
   subscribe: "Subscribe",
   blog: "Blog",
   locations: "Our shops",
-  language: "اردو",
+  language: "English",
   darkMode: "Dark mode",
   lightMode: "Light mode",
   maintenance: "We're doing some maintenance right now. Please check back soon.",
@@ -319,7 +319,7 @@ const ur: Dict = {
   subscribe: "سبسکرائب",
   blog: "بلاگ",
   locations: "ہماری دکانیں",
-  language: "English",
+  language: "اردو",
   darkMode: "ڈارک موڈ",
   lightMode: "لائٹ موڈ",
   maintenance: "ہم ابھی دیکھ بھال کر رہے ہیں۔ براہ کرم کچھ دیر بعد آئیں۔",
@@ -483,7 +483,12 @@ const ur: Dict = {
   you: "آپ",
 };
 
-export const DICTS = { en, ur };
+import { ar } from "./locales/ar";
+import { hi } from "./locales/hi";
+import { pa } from "./locales/pa";
+import { zh } from "./locales/zh";
+
+export const DICTS = { en, ur, ar, hi, pa, zh };
 export type Lang = keyof typeof DICTS;
 
 export const fill = (s: string, vars: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));

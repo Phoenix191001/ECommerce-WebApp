@@ -41,4 +41,8 @@ body {
 .store-dark .bg-brand-soft { background-color: color-mix(in srgb, var(--brand) 18%, #111827) !important; }
 
 /* Urdu: a Nastaliq-friendly stack, a bit more line height. */
-[lang="ur"] { font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", var(--font-geist-sans), sans-serif; line-height: 1.9; }
+[lang="ur"], [lang="pa"] { font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", var(--font-geist-sans), sans-serif; line-height: 1.9; }
+/* Arabic, Hindi and Chinese use the system's fonts for their scripts. */
+[lang="ar"] { font-family: "Noto Naskh Arabic", "Geeza Pro", "Segoe UI", var(--font-geist-sans), sans-serif; line-height: 1.7; }
+[lang="hi"] { font-family: "Noto Sans Devanagari", "Nirmala UI", "Kohinoor Devanagari", var(--font-geist-sans), sans-serif; line-height: 1.7; }
+[lang="zh"] { font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", var(--font-geist-sans), sans-serif; }

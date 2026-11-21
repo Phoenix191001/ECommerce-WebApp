@@ -64,6 +64,8 @@ export interface StoreSettings {
   chatGreeting: string; // F-45
   affiliateRate: number; // F-71 default commission percent
   sellerRate: number; // F-67 default commission the store keeps
+  languages: string[]; // F-16: languages shoppers can pick
+  defaultLang: string; // F-16: language for first-time visitors
 }
 
 export interface AuditLog {
@@ -161,6 +163,8 @@ const instanceSchema = new Schema<Instance>(
       chatGreeting: { type: String, default: "Hi! 👋 How can we help?" },
       affiliateRate: { type: Number, default: 10, min: 0, max: 90 },
       sellerRate: { type: Number, default: 10, min: 0, max: 90 },
+      languages: { type: [String], default: ["en", "ur"] },
+      defaultLang: { type: String, default: "en" },
     },
     onboarding: {
       done: { type: [String], default: [] },

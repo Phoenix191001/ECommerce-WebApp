@@ -20,6 +20,8 @@ import { affiliateForOrder } from "@/lib/affiliates";
 import { abBucket, recordConversion } from "@/lib/ab";
 import { displayCurrency } from "@/lib/currency";
 import { alertApps } from "@/lib/app-alerts";
+import { storeLanguages } from "@/lib/store-prefs";
+import type { Lang } from "@/lib/i18n";
 import { scoreOrder } from "@/lib/risk";
 import { fireWebhook } from "@/lib/webhooks";
 import { newTotpSecret, verifyTotp } from "@/lib/totp";
@@ -575,9 +577,10 @@ export async function toggleCompare(site: string, productId: string) {
   refresh(s);
 }
 
-export async function setLanguage(site: string, lang: "en" | "ur") {
+export async function setLanguage(site: string, lang: string) {
   const s = await store(site);
-  (await cookies()).set(`lang_${s.id}`, lang === "ur" ? "ur" : "en", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
+  if (!storeLanguages(s).includes(lang as Lang)) return;
+  (await cookies()).set(`lang_${s.id}`, lang, { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 365 });
   refresh(s);
 }
 

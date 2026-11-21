@@ -5,12 +5,14 @@ import { Card } from "@/components/admin/ui";
 import { CloseShiftForm, OpenShiftForm, PosScreen } from "@/components/manage/pos";
 import { loadParts, sellableStock } from "@/lib/cart";
 import { unitPrice } from "@/lib/pricing";
+import { panelPrefs } from "@/lib/panel-i18n";
 
 export const metadata = { title: "Point of sale" };
 
 export default async function PosPage({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
   const store = await requireStore(site);
+  const { t: T } = await panelPrefs(store);
   if (!store.features["F-34"]) notFound();
   const user = await requireStaff(store, "pos");
   const m = await storeModels(store);
@@ -20,8 +22,8 @@ export default async function PosPage({ params }: { params: Promise<{ site: stri
   if (f["F-36"] && !shift) {
     return (
       <div className="mx-auto max-w-sm">
-        <Card title="💵 Open your shift" accent="emerald">
-          <p className="mb-4 text-sm text-slate-600">Count the cash in the drawer before your first sale. At the end, you'll count it again and see any difference.</p>
+        <Card title={T("💵 Open your shift")} accent="emerald">
+          <p className="mb-4 text-sm text-slate-600">{T("Count the cash in the drawer before your first sale. At the end, you'll count it again and see any difference.")}</p>
           <OpenShiftForm site={site} />
         </Card>
       </div>
@@ -33,7 +35,7 @@ export default async function PosPage({ params }: { params: Promise<{ site: stri
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-slate-900">💵 Point of sale</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{T("💵 Point of sale")}</h1>
         {shift && (
           <div className="flex flex-wrap items-center gap-4 rounded-xl bg-white px-4 py-2 text-sm shadow-sm">
             <span>Shift since {new Date(shift.openedAt).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", timeStyle: "short" })} · sales {formatMoney(shift.cashSales, store.currency)}</span>

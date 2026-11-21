@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireStore } from "@/lib/tenant";
 import { can, requireStaff, type Permission } from "@/lib/store-auth";
-import { setPanelLanguage, staffLogout } from "../manage-actions";
+import { staffLogout } from "../manage-actions";
+import { PanelLangPicker, PanelLangProvider } from "@/components/manage/panel-lang";
 import { fill } from "@/lib/i18n";
 import { panelPrefs } from "@/lib/panel-i18n";
 
@@ -12,7 +13,7 @@ export default async function ManageLayout({ children, params }: Props) {
   const store = await requireStore(site);
   const user = await requireStaff(store);
   const f = store.features;
-  const { lang, p, dir } = await panelPrefs(store);
+  const { lang, p, dir, tr } = await panelPrefs(store);
   const b = `${store.base}/manage`;
   const nav: { href: string; label: string; icon: string; perm: Permission; show?: boolean; seller?: boolean }[] = [
     { href: `${b}/seller`, label: p.mySales, icon: "🏪", perm: "catalog", show: user.role === "seller", seller: true },
@@ -79,11 +80,11 @@ export default async function ManageLayout({ children, params }: Props) {
         <header className="print:hidden flex items-center justify-between gap-3 border-b border-slate-200 bg-white/80 px-6 py-3 text-sm text-slate-600 backdrop-blur">
           <span className="font-medium text-slate-500">{fill(p.hi, { name: user.name.split(" ")[0] })}</span>
           <div className="flex items-center gap-1">
-            <form action={setPanelLanguage.bind(null, site, lang === "ur" ? "en" : "ur")}><button className="rounded-lg px-2 py-1 font-medium text-emerald-700 hover:bg-emerald-50" aria-label={lang === "ur" ? "Switch to English" : "اردو میں دیکھیں"}>🌐 {p.switchLang}</button></form>
+            <PanelLangPicker site={site} lang={lang} />
             <form action={staffLogout.bind(null, site)}><button className="rounded-lg px-2 py-1 hover:bg-slate-100">{p.signOut}</button></form>
           </div>
         </header>
-        <main className="mx-auto max-w-6xl space-y-6 p-6">{children}</main>
+        <main className="mx-auto max-w-6xl space-y-6 p-6"><PanelLangProvider dict={tr}>{children}</PanelLangProvider></main>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useOptimistic, useState, useTransition } from "react";
 import type { Feature, FeatureGroup } from "@/lib/features";
+import { usePT } from "@/components/manage/panel-lang";
 
 export type ToggleAction = (id: string, on: boolean, withPrereqs?: boolean) => Promise<{ error?: string; missing?: string[] }>;
 
@@ -26,6 +27,7 @@ const GROUP_COLORS = [
 ];
 
 export function ToggleBoard(p: Props) {
+  const T = usePT();
   const [pending, start] = useTransition();
   const [optimistic, setOptimistic] = useOptimistic(p.toggles, (s, [id, on]: [string, boolean]) => ({ ...s, [id]: on }));
   const [message, setMessage] = useState<{ text: string; id?: string; missing?: string[] } | null>(null);
@@ -55,7 +57,7 @@ export function ToggleBoard(p: Props) {
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Search features by name, F-number, or description…"
+          placeholder={T("Search features by name, F-number, or description…")}
           className="w-full max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
         />
         <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-medium">
@@ -69,9 +71,9 @@ export function ToggleBoard(p: Props) {
           onClick={() => setAllOpen((x) => ({ open: !x.open, round: x.round + 1 }))}
           className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
-          {allOpen.open ? "▴ Close all" : "▾ Open all"}
+          {allOpen.open ? T("▴ Close all") : T("▾ Open all")}
         </button>
-        {pending && <span className="animate-pulse text-sm text-indigo-600">Saving…</span>}
+        {pending && <span className="animate-pulse text-sm text-indigo-600">{T("Saving…")}</span>}
       </div>
       {message && (
         <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
@@ -126,19 +128,19 @@ export function ToggleBoard(p: Props) {
                       <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-900">
                         <span className="rounded bg-slate-100 px-1.5 font-mono text-[11px] text-slate-600">{f.id}</span>
                         {f.name}
-                        {!impl.has(f.id) && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">Coming soon</span>}
-                        {!allowed && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">Not in plan</span>}
-                        {isLocked && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-white">🔒 Locked</span>}
+                        {!impl.has(f.id) && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">{T("Coming soon")}</span>}
+                        {!allowed && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">{T("Not in plan")}</span>}
+                        {isLocked && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-white">{T("🔒 Locked")}</span>}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-600">{p.descriptions[f.id]}</p>
                       <p className="mt-0.5 text-[11px] text-slate-500">
                         {f.requires.length ? <>Needs {f.requires.join(", ")} · </> : null}
-                        <a href={`${guide}#${f.id}`} target="_blank" className="text-indigo-600 hover:underline">Help</a>
-                        {blocked && <span className="font-medium text-amber-700"> · Inactive until its prerequisites are on</span>}
+                        <a href={`${guide}#${f.id}`} target="_blank" className="text-indigo-600 hover:underline">{T("Help")}</a>
+                        {blocked && <span className="font-medium text-amber-700"> {T("· Inactive until its prerequisites are on")}</span>}
                       </p>
                       {blocked && (
                         <button onClick={() => run(f.id, true, true)} className="mt-1 text-xs font-semibold text-amber-700 underline">
-                          Turn on missing prerequisites
+                          {T("Turn on missing prerequisites")}
                         </button>
                       )}
                     </div>
@@ -146,10 +148,10 @@ export function ToggleBoard(p: Props) {
                       <button
                         onClick={() => start(async () => { await p.onLock!(f.id, !isLocked); })}
                         disabled={pending}
-                        title={isLocked ? "Unlock so the Store Owner can change it" : "Lock so the Store Owner can't change it"}
+                        title={isLocked ? T("Unlock so the Store Owner can change it") : T("Lock so the Store Owner can't change it")}
                         className={`shrink-0 rounded-md px-2 py-1 text-xs ${isLocked ? "bg-slate-800 text-white" : "text-slate-500 hover:bg-slate-100"}`}
                       >
-                        {isLocked ? "Unlock" : "Lock"}
+                        {isLocked ? T("Unlock") : T("Lock")}
                       </button>
                     )}
                   </li>

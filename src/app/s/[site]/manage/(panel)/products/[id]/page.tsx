@@ -6,12 +6,14 @@ import { Card } from "@/components/admin/ui";
 import { ProductEditor } from "@/components/manage/forms";
 import { deleteProduct } from "../../../manage-actions";
 import { editorExtras } from "@/lib/editor-extras";
+import { panelPrefs } from "@/lib/panel-i18n";
 
 export const metadata = { title: "Edit product" };
 
 export default async function EditProduct({ params }: { params: Promise<{ site: string; id: string }> }) {
   const { site, id } = await params;
   const store = await requireStore(site);
+  const { t: T } = await panelPrefs(store);
   const user = await requireStaff(store, "catalog", { seller: true });
   if (!Types.ObjectId.isValid(id)) notFound();
   const m = await storeModels(store);
@@ -22,7 +24,7 @@ export default async function EditProduct({ params }: { params: Promise<{ site: 
     <>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">{p.name}</h1>
-        <a href={`${store.base}/p/${p.slug}`} target="_blank" className="text-sm text-emerald-700 hover:underline">View in store ↗</a>
+        <a href={`${store.base}/p/${p.slug}`} target="_blank" className="text-sm text-emerald-700 hover:underline">{T("View in store ↗")}</a>
       </div>
       <Card accent="emerald">
         <ProductEditor
@@ -49,8 +51,8 @@ export default async function EditProduct({ params }: { params: Promise<{ site: 
       </Card>
       <Card accent="rose">
         <form action={deleteProduct.bind(null, site, id)} className="flex items-center justify-between gap-3">
-          <p className="text-sm text-slate-600">Delete this product. Past orders keep their copy of it.</p>
-          <button className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500">Delete</button>
+          <p className="text-sm text-slate-600">{T("Delete this product. Past orders keep their copy of it.")}</p>
+          <button className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500">{T("Delete")}</button>
         </form>
       </Card>
     </>

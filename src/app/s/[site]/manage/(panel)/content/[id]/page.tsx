@@ -6,12 +6,14 @@ import { Card } from "@/components/admin/ui";
 import { PageEditor } from "@/components/manage/content-forms";
 import { deletePage } from "../../../manage-actions";
 import { cleanBlocks } from "@/lib/blocks";
+import { panelPrefs } from "@/lib/panel-i18n";
 
 export const metadata = { title: "Edit page" };
 
 export default async function EditPage({ params }: { params: Promise<{ site: string; id: string }> }) {
   const { site, id } = await params;
   const store = await requireStore(site);
+  const { t: T } = await panelPrefs(store);
   await requireStaff(store, "settings");
   if (!store.features["F-40"] || !Types.ObjectId.isValid(id)) notFound();
   const m = await storeModels(store);
@@ -24,7 +26,7 @@ export default async function EditPage({ params }: { params: Promise<{ site: str
       <Card accent="rose">
         <form action={deletePage.bind(null, site, id)} className="flex items-center justify-between">
           <p className="text-sm text-slate-600">Delete this {pg.kind === "post" ? "post" : "page"}.</p>
-          <button className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">Delete</button>
+          <button className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white">{T("Delete")}</button>
         </form>
       </Card>
     </>

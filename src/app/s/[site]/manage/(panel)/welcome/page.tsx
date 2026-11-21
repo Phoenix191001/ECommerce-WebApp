@@ -5,6 +5,7 @@ import { FEATURE_MAP, STARTER_PACK } from "@/lib/features";
 import { Card, btnTealCls } from "@/components/admin/ui";
 import { BrandingForm, ProductEditor, SettingsForm } from "@/components/manage/forms";
 import { markOnboarding, ownerStarterPack } from "../../manage-actions";
+import { panelPrefs } from "@/lib/panel-i18n";
 
 export const metadata = { title: "Setup wizard" };
 
@@ -20,6 +21,7 @@ export default async function Wizard({ params, searchParams }: { params: Promise
   const { site } = await params;
   const { step } = await searchParams;
   const store = await requireStore(site);
+  const { t: T } = await panelPrefs(store);
   await requireStaff(store, "settings");
   const done = new Set(store.onboarding.done);
   const m = await storeModels(store);
@@ -35,9 +37,9 @@ export default async function Wizard({ params, searchParams }: { params: Promise
   return (
     <>
       <div className="rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 p-6 text-white shadow-lg">
-        <p className="text-xs font-semibold uppercase tracking-widest text-white/70">Setup wizard</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-white/70">{T("Setup wizard")}</p>
         <h1 className="text-2xl font-bold">Let's get {store.name} ready to sell</h1>
-        <p className="mt-1 text-sm text-white/85">Five short steps. You can skip any step and come back later from your dashboard.</p>
+        <p className="mt-1 text-sm text-white/85">{T("Five short steps. You can skip any step and come back later from your dashboard.")}</p>
         <ol className="mt-5 grid grid-cols-5 gap-2">
           {STEPS.map((s, i) => (
             <li key={s.id}>
@@ -51,34 +53,34 @@ export default async function Wizard({ params, searchParams }: { params: Promise
       </div>
 
       {current === "brand" && (
-        <Card title="🎨 Make it yours" accent="emerald">
-          <p className="mb-4 text-sm text-slate-600">Your store name and color appear on every page. Pick a color and watch the preview change.</p>
+        <Card title={T("🎨 Make it yours")} accent="emerald">
+          <p className="mb-4 text-sm text-slate-600">{T("Your store name and color appear on every page. Pick a color and watch the preview change.")}</p>
           <BrandingForm site={site} name={store.name} color={store.branding.primaryColor} tagline={store.branding.tagline} logoUrl={store.branding.logoUrl} canColor={!!store.features["F-15"]} uploadUrl={`${store.base}/manage/upload`} storeId={store.id} />
         </Card>
       )}
       {current === "product" && (
-        <Card title="📦 Add your first product" accent="sky">
+        <Card title={T("📦 Add your first product")} accent="sky">
           {done.has("product") ? (
-            <p className="text-sm text-slate-600">✅ You already have products. <Link href={`${b}/products`} className="text-emerald-700 underline">Manage products</Link> or continue.</p>
+            <p className="text-sm text-slate-600">{T("✅ You already have products.")} <Link href={`${b}/products`} className="text-emerald-700 underline">{T("Manage products")}</Link> {T("or continue.")}</p>
           ) : (
             <>
-              <p className="mb-4 text-sm text-slate-600">Just a name and a price are enough to start. You can add photos with image links and fill in the rest later.</p>
+              <p className="mb-4 text-sm text-slate-600">{T("Just a name and a price are enough to start. You can add photos with image links and fill in the rest later.")}</p>
               <ProductEditor site={site} categories={categories} features={store.features} uploadUrl={`${store.base}/manage/upload`} storeId={store.id} />
             </>
           )}
         </Card>
       )}
       {current === "shipping" && (
-        <Card title="🚚 Delivery, tax, and contact" accent="amber">
-          <p className="mb-4 text-sm text-slate-600">Customers see delivery and tax at checkout before they pay. You can change these any time in Settings.</p>
+        <Card title={T("🚚 Delivery, tax, and contact")} accent="amber">
+          <p className="mb-4 text-sm text-slate-600">{T("Customers see delivery and tax at checkout before they pay. You can change these any time in Settings.")}</p>
           <SettingsForm site={site} s={{ currency: store.currency, ...store.settings }} f={store.features} />
         </Card>
       )}
       {current === "features" && (
-        <Card title="🧩 Choose your features" accent="violet">
+        <Card title={T("🧩 Choose your features")} accent="violet">
           <p className="text-sm text-slate-600">
-            Your store comes with a <b>starter pack</b> of features most shops need. Apply it with one click, then fine-tune on the{" "}
-            <Link href={`${b}/features`} className="text-emerald-700 underline">Features</Link> page.
+            {T("Your store comes with a")} <b>starter pack</b> of features most shops need. Apply it with one click, then fine-tune on the{" "}
+            <Link href={`${b}/features`} className="text-emerald-700 underline">{T("Features")}</Link> {T("page.")}
           </p>
           <ul className="my-4 grid gap-1 text-sm sm:grid-cols-2">
             {starterOn.map((id) => (
@@ -88,22 +90,22 @@ export default async function Wizard({ params, searchParams }: { params: Promise
               </li>
             ))}
           </ul>
-          <form action={ownerStarterPack.bind(null, site)}><button className={btnTealCls}>✨ Turn on the starter pack</button></form>
+          <form action={ownerStarterPack.bind(null, site)}><button className={btnTealCls}>{T("✨ Turn on the starter pack")}</button></form>
         </Card>
       )}
       {current === "launch" && (
-        <Card title="🚀 You're ready" accent="rose">
+        <Card title={T("🚀 You're ready")} accent="rose">
           <ol className="list-decimal space-y-2 pl-5 text-sm text-slate-700">
-            <li>Open your store and look around: <a href={store.base || "/"} target="_blank" className="font-semibold text-emerald-700 underline">view store ↗</a></li>
-            <li>Place a test order with cash on delivery, then find it under <Link href={`${b}/orders`} className="text-emerald-700 underline">Orders</Link> and mark it confirmed.</li>
-            <li>Share your store link with customers on WhatsApp and social media.</li>
+            <li>{T("Open your store and look around:")} <a href={store.base || "/"} target="_blank" className="font-semibold text-emerald-700 underline">{T("view store ↗")}</a></li>
+            <li>{T("Place a test order with cash on delivery, then find it under")} <Link href={`${b}/orders`} className="text-emerald-700 underline">{T("Orders")}</Link> {T("and mark it confirmed.")}</li>
+            <li>{T("Share your store link with customers on WhatsApp and social media.")}</li>
           </ol>
-          <form action={markOnboarding.bind(null, site, "launch")} className="mt-5"><button className={btnTealCls}>🎉 Finish setup</button></form>
+          <form action={markOnboarding.bind(null, site, "launch")} className="mt-5"><button className={btnTealCls}>{T("🎉 Finish setup")}</button></form>
         </Card>
       )}
 
       <div className="flex justify-between text-sm">
-        {idx > 0 ? <Link href={`${b}/welcome?step=${STEPS[idx - 1].id}`} className="text-slate-600 hover:underline">← Back</Link> : <span />}
+        {idx > 0 ? <Link href={`${b}/welcome?step=${STEPS[idx - 1].id}`} className="text-slate-600 hover:underline">{T("← Back")}</Link> : <span />}
         <Link href={nextLink} className="font-semibold text-emerald-700 hover:underline">{next ? `Skip to ${next.label} →` : "Go to dashboard →"}</Link>
       </div>
     </>

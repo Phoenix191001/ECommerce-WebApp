@@ -59,6 +59,8 @@ const DEFAULT_SETTINGS: StoreSettings = {
   chatGreeting: "Hi! 👋 How can we help?",
   affiliateRate: 10,
   sellerRate: 10,
+  languages: ["en", "ur"],
+  defaultLang: "en",
 };
 
 /** Resolve an instance by subdomain, or by custom domain when `site` contains a dot. Cached per request. */

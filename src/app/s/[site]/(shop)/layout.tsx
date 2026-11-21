@@ -26,7 +26,7 @@ export default async function ShopLayout({ children, params }: Props) {
   const { site } = await params;
   const store = await requireStore(site);
   const f = store.features;
-  const { t, lang, dir, dark } = await storePrefs(store);
+  const { t, lang, dir, dark, langs } = await storePrefs(store);
 
   if (store.status === "suspended") {
     // FR-A-05: suspended storefront shows a maintenance page.
@@ -82,7 +82,7 @@ export default async function ShopLayout({ children, params }: Props) {
             {f["F-40"] && <Link href={`${b}/blog`} className="hidden rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100 md:block">{t.blog}</Link>}
             {f["F-51"] && <Link href={`${b}/track`} className="hidden rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100 sm:block">{t.trackOrder}</Link>}
             {currencies.length > 0 && <CurrencyPicker site={site} base={store.currency} current={cur?.code ?? ""} options={currencies} />}
-            <PrefToggles site={site} lang={lang} dark={dark} showLang={!!f["F-16"]} showDark={!!f["F-87"]} L={t} />
+            <PrefToggles site={site} lang={lang} dark={dark} langs={langs} showDark={!!f["F-87"]} L={t} />
             {f["F-22"] && (
               <Link href={`${b}/account${session?.role === "customer" ? "" : "/login"}`} className="rounded-lg px-2 py-1 text-slate-600 hover:bg-slate-100">
                 {session?.role === "customer" ? `👤 ${t.account}` : t.signIn}

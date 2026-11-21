@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { chatInbox, chatReply, chatSetStatus, type Inbox } from "@/app/s/[site]/manage/chat-actions";
+import { usePT } from "@/components/manage/panel-lang";
 
 /** F-45: staff side of live chat. Refreshes every 5 seconds. */
 export function ChatInbox({ site, initial }: { site: string; initial: Inbox }) {
+  const T = usePT();
   const [box, setBox] = useState(initial);
   const [sel, setSel] = useState<string | undefined>(initial.open?.id);
   const [text, setText] = useState("");
@@ -23,7 +25,7 @@ export function ChatInbox({ site, initial }: { site: string; initial: Inbox }) {
   return (
     <div className="grid min-h-[32rem] gap-4 md:grid-cols-[18rem_1fr]">
       <ul className="max-h-[36rem] divide-y divide-slate-100 overflow-y-auto rounded-2xl bg-white shadow-sm">
-        {box.threads.length === 0 && <li className="p-4 text-sm text-slate-500">No chats yet. The chat bubble shows on every page of your store.</li>}
+        {box.threads.length === 0 && <li className="p-4 text-sm text-slate-500">{T("No chats yet. The chat bubble shows on every page of your store.")}</li>}
         {box.threads.map((t) => (
           <li key={t.id}>
             <button onClick={() => { setSel(t.id); load(t.id); }} className={`w-full p-3 text-start text-sm hover:bg-slate-50 ${sel === t.id ? "bg-emerald-50" : ""}`}>
@@ -38,11 +40,11 @@ export function ChatInbox({ site, initial }: { site: string; initial: Inbox }) {
         ))}
       </ul>
       <div className="flex flex-col rounded-2xl bg-white shadow-sm">
-        {!open ? <p className="m-auto text-sm text-slate-500">Choose a chat.</p> : (
+        {!open ? <p className="m-auto text-sm text-slate-500">{T("Choose a chat.")}</p> : (
           <>
             <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3 text-sm">
               <b>{open.name}</b>{open.email && <a href={`mailto:${open.email}`} className="text-emerald-700">{open.email}</a>}
-              <button onClick={async () => { await chatSetStatus(site, open.id, open.status === "open" ? "closed" : "open"); load(open.id); }} className="ms-auto text-xs text-slate-600 hover:underline">{open.status === "open" ? "✔ Close chat" : "Reopen"}</button>
+              <button onClick={async () => { await chatSetStatus(site, open.id, open.status === "open" ? "closed" : "open"); load(open.id); }} className="ms-auto text-xs text-slate-600 hover:underline">{open.status === "open" ? T("✔ Close chat") : T("Reopen")}</button>
             </div>
             <div className="max-h-[26rem] flex-1 space-y-2 overflow-y-auto bg-slate-50 p-4 text-sm">
               {open.messages.map((m, i) => (
@@ -63,8 +65,8 @@ export function ChatInbox({ site, initial }: { site: string; initial: Inbox }) {
               }}
               className="flex gap-2 border-t border-slate-100 p-3"
             >
-              <input value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder="Type a reply…" aria-label="Reply" className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" autoFocus />
-              <button className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Send</button>
+              <input value={text} onChange={(e) => setText(e.target.value)} maxLength={1000} placeholder={T("Type a reply…")} aria-label={T("Reply")} className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" autoFocus />
+              <button className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">{T("Send")}</button>
             </form>
             {err && <p className="px-3 pb-2 text-xs text-rose-600">{err}</p>}
           </>

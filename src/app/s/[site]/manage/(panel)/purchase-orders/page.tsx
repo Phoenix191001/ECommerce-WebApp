@@ -6,6 +6,7 @@ import { Badge, Card, Field, inputCls } from "@/components/admin/ui";
 import { ActionForm } from "@/components/manage/action-form";
 import { PoItems } from "@/components/manage/ops-forms";
 import { createPurchaseOrder, receivePurchaseOrder, setPurchaseOrderStatus } from "../../ops-actions";
+import { panelPrefs } from "@/lib/panel-i18n";
 
 export const metadata = { title: "Purchase orders" };
 const input = inputCls.replaceAll("indigo", "emerald");
@@ -14,6 +15,7 @@ const TONE = { draft: "slate", ordered: "sky", received: "green", cancelled: "ro
 export default async function PurchaseOrders({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
   const store = await requireStore(site);
+  const { t: T } = await panelPrefs(store);
   const user = await requireStaff(store, "catalog");
   if (!store.features["F-80"] || user.role === "seller") notFound();
   const m = await storeModels(store);
@@ -26,23 +28,23 @@ export default async function PurchaseOrders({ params }: { params: Promise<{ sit
   return (
     <>
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">📥 Purchase orders</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{T("📥 Purchase orders")}</h1>
         <p className="text-sm text-slate-500">Order stock from suppliers. When the goods arrive, receive them here and your stock goes up{store.features["F-82"] ? " and cost prices update" : ""}.</p>
       </div>
-      <Card title="➕ New purchase order" accent="emerald">
-        <ActionForm action={createPurchaseOrder.bind(null, site)} submit="Save purchase order" reset>
+      <Card title={T("➕ New purchase order")} accent="emerald">
+        <ActionForm action={createPurchaseOrder.bind(null, site)} submit={T("Save purchase order")} reset>
           <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Supplier"><input name="supplier" required className={input} /></Field>
-            <Field label="Phone"><input name="phone" className={input} /></Field>
-            <Field label="Email"><input name="email" type="email" className={input} /></Field>
+            <Field label={T("Supplier")}><input name="supplier" required className={input} /></Field>
+            <Field label={T("Phone")}><input name="phone" className={input} /></Field>
+            <Field label={T("Email")}><input name="email" type="email" className={input} /></Field>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            {whs.length > 0 && <Field label="Deliver to"><select name="warehouse" className={input}>{whs.map((w) => <option key={String(w._id)} value={String(w._id)}>{w.name}</option>)}</select></Field>}
-            <Field label="Expected on"><input name="expectedAt" type="date" className={input} /></Field>
+            {whs.length > 0 && <Field label={T("Deliver to")}><select name="warehouse" className={input}>{whs.map((w) => <option key={String(w._id)} value={String(w._id)}>{w.name}</option>)}</select></Field>}
+            <Field label={T("Expected on")}><input name="expectedAt" type="date" className={input} /></Field>
           </div>
           <PoItems lines={lines.map((l) => ({ key: l.key, name: l.name }))} />
-          <Field label="Note"><textarea name="note" rows={2} className={input} /></Field>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="send" value="1" defaultChecked /> Mark as ordered (sent to the supplier)</label>
+          <Field label={T("Note")}><textarea name="note" rows={2} className={input} /></Field>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="send" value="1" defaultChecked /> {T("Mark as ordered (sent to the supplier)")}</label>
         </ActionForm>
       </Card>
       {pos.map((po) => {
@@ -53,8 +55,8 @@ export default async function PurchaseOrders({ params }: { params: Promise<{ sit
             title={<span className="flex flex-wrap items-center gap-2">PO-{po.number} · {po.supplier.name} <Badge tone={TONE[po.status]}>{po.status}</Badge></span>}
             actions={open ? (
               <div className="flex gap-3">
-                {po.status === "draft" && <form action={setPurchaseOrderStatus.bind(null, site, String(po._id), "ordered")}><button className="text-xs font-semibold text-sky-700 hover:underline">Mark ordered</button></form>}
-                <form action={setPurchaseOrderStatus.bind(null, site, String(po._id), "cancelled")}><button className="text-xs text-rose-600 hover:underline">Cancel</button></form>
+                {po.status === "draft" && <form action={setPurchaseOrderStatus.bind(null, site, String(po._id), "ordered")}><button className="text-xs font-semibold text-sky-700 hover:underline">{T("Mark ordered")}</button></form>}
+                <form action={setPurchaseOrderStatus.bind(null, site, String(po._id), "cancelled")}><button className="text-xs text-rose-600 hover:underline">{T("Cancel")}</button></form>
               </div>
             ) : undefined}>
             <p className="mb-2 text-xs text-slate-500">
@@ -65,7 +67,7 @@ export default async function PurchaseOrders({ params }: { params: Promise<{ sit
               {` · total ${fm(total)}`}
             </p>
             {open ? (
-              <ActionForm action={receivePurchaseOrder.bind(null, site, String(po._id))} submit="📥 Receive these" className="space-y-2 text-sm">
+              <ActionForm action={receivePurchaseOrder.bind(null, site, String(po._id))} submit={T("📥 Receive these")} className="space-y-2 text-sm">
                 {po.items.map((it, i) => (
                   <label key={i} className="flex items-center justify-between gap-2">
                     <span>{it.name} <span className="text-xs text-slate-500">· {it.received}/{it.qty} received · {fm(it.cost)} each</span></span>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
+import { dateLocale } from "@/lib/languages";
 import { panelPrefs, pStatus, pText } from "@/lib/panel-i18n";
 import { Badge, Card, STATUS_TONE } from "@/components/admin/ui";
 
@@ -27,7 +28,7 @@ export default async function Orders({ params, searchParams }: { params: Promise
   ]);
   const cnt = Object.fromEntries(counts.map((c) => [c._id, c.n]));
   const b = `${store.base}/manage`;
-  const { p, lang } = await panelPrefs(store);
+  const { p, lang, t: T } = await panelPrefs(store);
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -50,8 +51,8 @@ export default async function Orders({ params, searchParams }: { params: Promise
               <tbody className="divide-y divide-slate-100">
                 {orders.map((o) => (
                   <tr key={o.number} className="hover:bg-slate-50">
-                    <td className="py-2.5"><Link href={`${b}/orders/${o.number}`} className="font-semibold text-emerald-700 hover:underline">#{o.number}</Link>{store.features["F-106"] && (o.riskScore ?? 0) >= 50 && <span title={(o.riskReasons ?? []).join(", ")} className="ms-1">⚠️</span>}{(o.pendingRefunds?.length ?? 0) > 0 && <span title="Refund waiting for approval" className="ms-1">⏳</span>}</td>
-                    <td className="text-slate-600">{new Date(o.createdAt!).toLocaleString(lang === "ur" ? "ur-PK" : "en-GB", { timeZone: "Asia/Karachi", dateStyle: "short", timeStyle: "short" })}</td>
+                    <td className="py-2.5"><Link href={`${b}/orders/${o.number}`} className="font-semibold text-emerald-700 hover:underline">#{o.number}</Link>{store.features["F-106"] && (o.riskScore ?? 0) >= 50 && <span title={(o.riskReasons ?? []).join(", ")} className="ms-1">⚠️</span>}{(o.pendingRefunds?.length ?? 0) > 0 && <span title={T("Refund waiting for approval")} className="ms-1">⏳</span>}</td>
+                    <td className="text-slate-600">{new Date(o.createdAt!).toLocaleString(dateLocale(lang), { timeZone: "Asia/Karachi", dateStyle: "short", timeStyle: "short" })}</td>
                     <td>{o.customer.name || p.walkIn}</td>
                     <td><Badge tone={o.channel === "pos" ? "violet" : "sky"}>{o.channel === "pos" ? "POS" : p.online}</Badge></td>
                     <td><Badge tone={STATUS_TONE[o.paymentStatus]}>{pText(p, "pay", o.paymentStatus)}</Badge></td>

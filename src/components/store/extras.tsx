@@ -11,6 +11,7 @@ import { AddToCart } from "./cart";
 import { field } from "./forms";
 import { fill, type Dict } from "@/lib/i18n";
 import { showMoney } from "@/lib/money";
+import { LANGS } from "@/lib/languages";
 
 const money = (n: number, c: string) =>
   new Intl.NumberFormat("en-PK", { style: "currency", currency: c, maximumFractionDigits: 0 }).format(n);
@@ -142,15 +143,24 @@ export function QuestionForm({ site, product, L }: { site: string; product: stri
 
 // ---------- Layout ----------
 
-export function PrefToggles({ site, lang, dark, showLang, showDark, L }: { site: string; lang: string; dark: boolean; showLang: boolean; showDark: boolean; L: Dict }) {
+export function PrefToggles({ site, lang, dark, langs, showDark, L }: { site: string; lang: string; dark: boolean; langs: string[]; showDark: boolean; L: Dict }) {
   const [pending, start] = useTransition();
   const router = useRouter();
   return (
     <div className="flex items-center gap-1">
-      {showLang && (
-        <button disabled={pending} onClick={() => start(async () => { await setLanguage(site, lang === "ur" ? "en" : "ur"); router.refresh(); })} className="rounded-lg px-2 py-1 text-sm text-slate-600 hover:bg-slate-100" aria-label="Change language">
-          🌐 {L.language}
-        </button>
+      {langs.length > 1 && (
+        <label className="flex items-center gap-1 rounded-lg px-1 text-sm text-slate-600 hover:bg-slate-100">
+          <span aria-hidden>🌐</span>
+          <select
+            value={lang}
+            disabled={pending}
+            onChange={(e) => { const v = e.target.value; start(async () => { await setLanguage(site, v); router.refresh(); }); }}
+            className="cursor-pointer bg-transparent py-1 text-sm focus:outline-none"
+            aria-label="Language"
+          >
+            {LANGS.filter((x) => langs.includes(x.code)).map((x) => <option key={x.code} value={x.code}>{x.native}</option>)}
+          </select>
+        </label>
       )}
       {showDark && (
         <button disabled={pending} onClick={() => start(async () => { await setTheme(site, dark ? "light" : "dark"); router.refresh(); })} className="rounded-lg px-2 py-1 text-sm hover:bg-slate-100" aria-label={dark ? L.lightMode : L.darkMode} title={dark ? L.lightMode : L.darkMode}>

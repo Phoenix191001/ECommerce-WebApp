@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { can, requireStaff } from "@/lib/store-auth";
 import { fill } from "@/lib/i18n";
+import { dateLocale } from "@/lib/languages";
 import { panelPrefs, pStatus } from "@/lib/panel-i18n";
 import { Badge, Card, Checklist, STATUS_TONE, Stat } from "@/components/admin/ui";
 import { markOnboarding } from "../manage-actions";
@@ -26,7 +27,7 @@ export default async function ManageHome({ params }: { params: Promise<{ site: s
   const m = await storeModels(store);
   const f = store.features;
   const { since, day14 } = windows();
-  const { p, lang } = await panelPrefs(store);
+  const { p, lang, t: T } = await panelPrefs(store);
   const L = p;
 
   const [agg, daily, top, lowStock, recent, productCount, pendingCount] = await Promise.all([
@@ -55,7 +56,7 @@ export default async function ManageHome({ params }: { params: Promise<{ site: s
   const days = Array.from({ length: 14 }, (_, i) => {
     const d = new Date(day14.getTime() + i * 86400_000);
     const key = d.toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
-    return { key, label: d.toLocaleDateString(lang === "ur" ? "ur-PK" : "en-GB", { timeZone: "Asia/Karachi", day: "numeric", month: "short" }), v: daily.find((x) => x._id === key)?.revenue ?? 0 };
+    return { key, label: d.toLocaleDateString(dateLocale(lang), { timeZone: "Asia/Karachi", day: "numeric", month: "short" }), v: daily.find((x) => x._id === key)?.revenue ?? 0 };
   });
   const maxV = Math.max(1, ...days.map((d) => d.v));
 
@@ -76,7 +77,7 @@ export default async function ManageHome({ params }: { params: Promise<{ site: s
           <h1 className="text-2xl font-bold text-slate-900">{p.dashboard}</h1>
           <p className="text-sm text-slate-500">{fill(p.last30, { store: store.name })}</p>
         </div>
-        {pendingCount > 0 && <Link href={`${b}/orders?status=pending`} className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">{lang === "ur" ? fill(p.newOrders, { n: pendingCount }) : `🔔 ${pendingCount} new order${pendingCount > 1 ? "s" : ""} to confirm`}</Link>}
+        {pendingCount > 0 && <Link href={`${b}/orders?status=pending`} className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">{lang !== "en" ? fill(p.newOrders, { n: pendingCount }) : `🔔 ${pendingCount} new order${pendingCount > 1 ? "s" : ""} to confirm`}</Link>}
       </div>
 
       {showOnboarding && (
@@ -96,7 +97,7 @@ export default async function ManageHome({ params }: { params: Promise<{ site: s
             <Stat label={p.products} value={productCount} tone="amber" icon="📦" />
           </div>
           <Card title={p.sales14} accent="emerald">
-            <div className="flex h-40 gap-1.5" role="img" aria-label="Daily sales for the last 14 days">
+            <div className="flex h-40 gap-1.5" role="img" aria-label={T("Daily sales for the last 14 days")}>
               {days.map((d) => (
                 <div key={d.key} className="group flex flex-1 flex-col items-center gap-1">
                   <div className="relative w-full flex-1">

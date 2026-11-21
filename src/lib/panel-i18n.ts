@@ -1,8 +1,11 @@
 import "server-only";
 import { cookies } from "next/headers";
 import type { StoreContext } from "./tenant";
+import { dirOf, isLang, type LangCode } from "./languages";
+import { ar, hi, pa, zh } from "./panel-locales";
+import { ur as urTr } from "./panel-tr/ur";
 
-// Store panel text in English and Urdu. The staff member picks the language for themselves
+// Store panel text in six languages (keyed here for the menu, dashboard and lists; full sentences in panel-tr/). The staff member picks the language for themselves
 // (cookie plang_<storeId>); it is separate from the language shoppers choose on the storefront.
 
 const en = {
@@ -69,9 +72,15 @@ const ur: PanelDict = {
   pay_unpaid: "ادا نہیں ہوا", pay_paid: "ادا شدہ", pay_refunded: "رقم واپس", pay_partially_refunded: "جزوی واپسی",
 };
 
-export async function panelPrefs(store: StoreContext): Promise<{ lang: "en" | "ur"; p: PanelDict; dir: "ltr" | "rtl" }> {
-  const lang = (await cookies()).get(`plang_${store.id}`)?.value === "ur" ? "ur" : "en";
-  return { lang, p: lang === "ur" ? ur : en, dir: lang === "ur" ? "rtl" : "ltr" };
+const DICTS: Record<LangCode, PanelDict> = { en, ur, ar, hi, pa, zh };
+/** Full-sentence translations for the rest of the panel, keyed by the English text. */
+const TR: Partial<Record<LangCode, Record<string, string>>> = { ur: urTr };
+
+export async function panelPrefs(store: StoreContext): Promise<{ lang: LangCode; p: PanelDict; dir: "ltr" | "rtl"; t: (s: string) => string; tr: Record<string, string> }> {
+  const v = (await cookies()).get(`plang_${store.id}`)?.value;
+  const lang: LangCode = isLang(v) ? v : "en";
+  const tr = TR[lang] ?? {};
+  return { lang, p: DICTS[lang], dir: dirOf(lang), t: (s: string) => tr[s] ?? s, tr };
 }
 
 export const pStatus = (p: PanelDict, s: string) => (p as Record<string, string>)[`st_${s}`] ?? s;

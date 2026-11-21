@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { storeModels, formatMoney, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { PrintButton } from "@/components/store/print";
+import { panelPrefs } from "@/lib/panel-i18n";
 
 export const metadata = { title: "Receipt" };
 
@@ -9,6 +10,7 @@ export const metadata = { title: "Receipt" };
 export default async function Receipt({ params }: { params: Promise<{ site: string; number: string }> }) {
   const { site, number } = await params;
   const store = await requireStore(site);
+  const { t: T } = await panelPrefs(store);
   if (!store.features["F-39"]) notFound();
   await requireStaff(store, "pos");
   const o = await (await storeModels(store)).Order.findOne({ number: Number(number) }).lean();
@@ -27,11 +29,11 @@ export default async function Receipt({ params }: { params: Promise<{ site: stri
         </div>
       ))}
       <hr className="border-dashed" />
-      {o.tax > 0 && <p className="flex justify-between"><span>Tax</span><span>{fm(o.tax)}</span></p>}
-      <p className="flex justify-between text-sm font-bold"><span>TOTAL</span><span>{fm(o.total)}</span></p>
+      {o.tax > 0 && <p className="flex justify-between"><span>{T("Tax")}</span><span>{fm(o.tax)}</span></p>}
+      <p className="flex justify-between text-sm font-bold"><span>{T("TOTAL")}</span><span>{fm(o.total)}</span></p>
       <p className="mt-1">{o.note}</p>
-      <p className="mt-3 text-center">Thank you for shopping with us!</p>
-      <div className="mt-4 text-center print:hidden"><PrintButton label="🖨️ Print" /></div>
+      <p className="mt-3 text-center">{T("Thank you for shopping with us!")}</p>
+      <div className="mt-4 text-center print:hidden"><PrintButton label={T("🖨️ Print")} /></div>
     </div>
   );
 }

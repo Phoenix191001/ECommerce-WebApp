@@ -7,6 +7,7 @@ import { PushOptIn } from "@/components/store/push";
 import { pushConfigured, pushPublicKey } from "@/lib/push";
 import { storePrefs } from "@/lib/store-prefs";
 import { fill, payText, statusText } from "@/lib/i18n";
+import { dateLocale } from "@/lib/languages";
 import { reorder } from "../../../shop-actions";
 
 export const metadata = { title: "Your order" };
@@ -39,7 +40,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold">{fill(L.orderNo, { n: o.number })}</h2>
-            <p className="text-sm text-slate-500">{fill(L.placedOn, { date: new Date(o.createdAt!).toLocaleString(lang === "ur" ? "ur-PK" : "en-GB", { timeZone: "Asia/Karachi" }) })}</p>
+            <p className="text-sm text-slate-500">{fill(L.placedOn, { date: new Date(o.createdAt!).toLocaleString(dateLocale(lang), { timeZone: "Asia/Karachi" }) })}</p>
           </div>
           <div className="flex gap-2">
             {store.features["F-52"] && <Link href={`${b}/order/${o.number}/invoice${tq}`} className="rounded-xl border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">{L.invoice}</Link>}
@@ -113,7 +114,7 @@ export default async function OrderPage({ params, searchParams }: Props) {
             <ol className="space-y-2">
               {o.shipments.map((sh, n) => (
                 <li key={n}>
-                  <b>{fill(L.shipmentN, { n: n + 1 })}</b> · {new Date(sh.at).toLocaleDateString(lang === "ur" ? "ur-PK" : "en-GB", { timeZone: "Asia/Karachi" })}
+                  <b>{fill(L.shipmentN, { n: n + 1 })}</b> · {new Date(sh.at).toLocaleDateString(dateLocale(lang), { timeZone: "Asia/Karachi" })}
                   {sh.courier && <> · {sh.courier}</>}{sh.tracking && <> · {L.tracking}: <span className="font-mono">{sh.tracking}</span></>}
                   <span className="block text-slate-600">{sh.items.map((x) => `${o.items[x.line]?.name ?? "?"} × ${x.qty}`).join(", ")}</span>
                 </li>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { BLOCK_TYPES, newBlock, type Block } from "@/lib/blocks";
 import { inputCls } from "@/components/admin/ui";
+import { usePT } from "@/components/manage/panel-lang";
 
 const input = inputCls.replaceAll("indigo", "emerald");
 
@@ -12,6 +13,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 /** F-116: build a page from blocks. Drag a block by its handle (or use ↑ ↓) to reorder. */
 export function PageBuilder({ initial, categories }: { initial: Block[]; categories: string[] }) {
+  const T = usePT();
   const [blocks, setBlocks] = useState<Block[]>(initial);
   const [drag, setDrag] = useState<number | null>(null);
   const [over, setOver] = useState<number | null>(null);
@@ -31,7 +33,7 @@ export function PageBuilder({ initial, categories }: { initial: Block[]; categor
   return (
     <div className="space-y-3">
       <input type="hidden" name="blocks" value={JSON.stringify(blocks)} />
-      {blocks.length === 0 && <p className="rounded-xl border-2 border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">No blocks yet. Add one below. (Without blocks, the page shows its text.)</p>}
+      {blocks.length === 0 && <p className="rounded-xl border-2 border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">{T("No blocks yet. Add one below. (Without blocks, the page shows its text.)")}</p>}
       <ol className="space-y-3">
         {blocks.map((b, i) => {
           const meta = BLOCK_TYPES.find((t) => t.type === b.type)!;
@@ -43,12 +45,12 @@ export function PageBuilder({ initial, categories }: { initial: Block[]; categor
               className={`rounded-xl border bg-white p-3 shadow-sm ${over === i && drag !== null && drag !== i ? "border-emerald-500 ring-2 ring-emerald-200" : "border-slate-200"} ${drag === i ? "opacity-50" : ""}`}
             >
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                <span draggable onDragStart={() => setDrag(i)} onDragEnd={() => { setDrag(null); setOver(null); }} className="cursor-grab select-none rounded px-1 text-slate-400 hover:bg-slate-100" title="Drag to move" aria-hidden>⠿</span>
+                <span draggable onDragStart={() => setDrag(i)} onDragEnd={() => { setDrag(null); setOver(null); }} className="cursor-grab select-none rounded px-1 text-slate-400 hover:bg-slate-100" title={T("Drag to move")} aria-hidden>⠿</span>
                 <span>{meta.icon} {meta.label}</span>
                 <span className="ms-auto flex gap-1">
-                  <button type="button" onClick={() => move(i, i - 1)} className="rounded border px-1.5 text-xs" aria-label="Move up">↑</button>
-                  <button type="button" onClick={() => move(i, i + 1)} className="rounded border px-1.5 text-xs" aria-label="Move down">↓</button>
-                  <button type="button" onClick={() => setBlocks((x) => x.filter((_, j) => j !== i))} className="rounded border border-rose-200 px-1.5 text-xs text-rose-600" aria-label="Remove block">✕</button>
+                  <button type="button" onClick={() => move(i, i - 1)} className="rounded border px-1.5 text-xs" aria-label={T("Move up")}>↑</button>
+                  <button type="button" onClick={() => move(i, i + 1)} className="rounded border px-1.5 text-xs" aria-label={T("Move down")}>↓</button>
+                  <button type="button" onClick={() => setBlocks((x) => x.filter((_, j) => j !== i))} className="rounded border border-rose-200 px-1.5 text-xs text-rose-600" aria-label={T("Remove block")}>✕</button>
                 </span>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -58,9 +60,9 @@ export function PageBuilder({ initial, categories }: { initial: Block[]; categor
                 {b.type === "products" && (
                   <>
                     {field(i, b, "title", "Heading")}
-                    <Row label="Category">
+                    <Row label={T("Category")}>
                       <select value={b.category} onChange={(e) => set(i, { category: e.target.value })} className={input}>
-                        <option value="">Newest products</option>
+                        <option value="">{T("Newest products")}</option>
                         {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </Row>
@@ -71,9 +73,9 @@ export function PageBuilder({ initial, categories }: { initial: Block[]; categor
                 {b.type === "banner" && (
                   <>
                     {field(i, b, "text", "Text")}{field(i, b, "link", "Link (optional)")}
-                    <Row label="Colour">
+                    <Row label={T("Colour")}>
                       <select value={b.tone} onChange={(e) => set(i, { tone: e.target.value as "brand" | "dark" | "light" })} className={input}>
-                        <option value="brand">Store colour</option><option value="dark">Dark</option><option value="light">Light</option>
+                        <option value="brand">{T("Store colour")}</option><option value="dark">{T("Dark")}</option><option value="light">{T("Light")}</option>
                       </select>
                     </Row>
                   </>

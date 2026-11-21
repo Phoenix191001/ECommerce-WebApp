@@ -319,17 +319,40 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       }
     });
 
-    await step("Urdu right-to-left and dark mode", async () => {
+    await step("storefront languages: Urdu, Arabic, Chinese; dark mode", async () => {
+      await op.goto(`${S}/manage/settings`);
+      const lf = op.locator("form", { has: op.getByRole("button", { name: "Save languages" }) });
+      for (const code of ["ar", "zh"]) await lf.locator(`input[name=languages][value=${code}]`).check();
+      await lf.getByRole("button", { name: "Save languages" }).click();
+      await see(op, "Shoppers can choose");
       await sp.goto(S);
-      await sp.getByRole("button", { name: "Change language" }).click();
+      await sp.getByLabel("Language").selectOption("ur");
       await sp.locator('[lang="ur"][dir="rtl"]').first().waitFor();
       await see(sp, "کارٹ");
-      await sp.getByRole("button", { name: "Change language" }).click();
+      await sp.getByLabel("Language").selectOption("ar");
+      await sp.locator('[lang="ar"][dir="rtl"]').first().waitFor();
+      await see(sp, "السلة");
+      await sp.getByLabel("Language").selectOption("zh");
+      await sp.locator('[lang="zh"][dir="ltr"]').first().waitFor();
+      await see(sp, "购物车");
+      await sp.getByLabel("Language").selectOption("en");
       await sp.locator('[lang="en"]').first().waitFor();
       await sp.getByRole("button", { name: "Dark mode" }).click();
       await sp.locator(".store-dark").first().waitFor();
       await sp.screenshot({ path: `${SHOTS}/F-dark.png` });
       await sp.getByRole("button", { name: "Light mode" }).click();
+    });
+
+    await step("store panel in Urdu, then back to English", async () => {
+      await op.goto(`${S}/manage/settings`);
+      await op.getByLabel("Panel language").selectOption("ur");
+      await op.locator('[lang="ur"][dir="rtl"]').first().waitFor();
+      await see(op, "سیٹنگز محفوظ کریں");
+      await op.goto(`${S}/manage/products/new`);
+      await see(op, "پروڈکٹ کا نام");
+      await op.getByLabel("Panel language").selectOption("en");
+      await op.locator('[lang="en"]').first().waitFor();
+      await see(op, "Product name");
     });
 
     await step("API key: 401 without, 200 with", async () => {

@@ -4,6 +4,7 @@ import { formatMoney, requireStore, storeModels } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { sellerTotals } from "@/lib/marketplace";
 import { Card, Stat } from "@/components/admin/ui";
+import { panelPrefs } from "@/lib/panel-i18n";
 
 export const metadata = { title: "My sales" };
 
@@ -11,6 +12,7 @@ export const metadata = { title: "My sales" };
 export default async function SellerHome({ params }: { params: Promise<{ site: string }> }) {
   const { site } = await params;
   const store = await requireStore(site);
+  const { t: T } = await panelPrefs(store);
   const user = await requireStaff(store, "catalog", { seller: true });
   if (user.role !== "seller" || !user.sellerId) notFound();
   const m = await storeModels(store);
@@ -25,13 +27,13 @@ export default async function SellerHome({ params }: { params: Promise<{ site: s
         <p className="text-sm text-slate-500">You sell through {store.name}. They keep {t.seller.rate}% of delivered sales and pay you the rest.</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Delivered sales" value={fm(t.gross)} tone="emerald" icon="💰" />
-        <Stat label="Your share" value={fm(t.earned)} tone="sky" icon="🧾" />
-        <Stat label="Paid to you" value={fm(t.paid)} tone="violet" icon="🏦" />
-        <Stat label="Owed to you" value={fm(t.owed)} tone="amber" icon="⏳" />
+        <Stat label={T("Delivered sales")} value={fm(t.gross)} tone="emerald" icon="💰" />
+        <Stat label={T("Your share")} value={fm(t.earned)} tone="sky" icon="🧾" />
+        <Stat label={T("Paid to you")} value={fm(t.paid)} tone="violet" icon="🏦" />
+        <Stat label={T("Owed to you")} value={fm(t.owed)} tone="amber" icon="⏳" />
       </div>
-      <Card title="Recent orders with your products" accent="sky" actions={<Link href={`${store.base}/manage/orders`} className="text-sm text-emerald-700 hover:underline">All →</Link>}>
-        {recent.length === 0 ? <p className="text-sm text-slate-500">No orders yet. <Link href={`${store.base}/manage/products/new`} className="text-emerald-700 underline">Add a product</Link>.</p> : (
+      <Card title={T("Recent orders with your products")} accent="sky" actions={<Link href={`${store.base}/manage/orders`} className="text-sm text-emerald-700 hover:underline">{T("All →")}</Link>}>
+        {recent.length === 0 ? <p className="text-sm text-slate-500">{T("No orders yet.")} <Link href={`${store.base}/manage/products/new`} className="text-emerald-700 underline">{T("Add a product")}</Link>.</p> : (
           <ul className="divide-y divide-slate-100 text-sm">
             {recent.map((o) => {
               const mine = o.items.filter((i) => String(i.seller) === String(user.sellerId));
@@ -48,7 +50,7 @@ export default async function SellerHome({ params }: { params: Promise<{ site: s
         )}
       </Card>
       {t.seller.payouts.length > 0 && (
-        <Card title="Payouts" accent="violet">
+        <Card title={T("Payouts")} accent="violet">
           <ul className="text-sm">{t.seller.payouts.slice().reverse().map((p, i) => <li key={i}>{new Date(p.at).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi" })} · {fm(p.amount)} {p.note && `· ${p.note}`}</li>)}</ul>
         </Card>
       )}
