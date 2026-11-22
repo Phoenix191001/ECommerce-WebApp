@@ -1,7 +1,8 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import type { Feature, FeatureGroup } from "@/lib/features";
+import { FEATURE_MAP, dependentsOf, type Feature, type FeatureGroup } from "@/lib/features";
+import { HOW_TO } from "@/lib/feature-help";
 import { usePT } from "@/components/manage/panel-lang";
 
 export type ToggleAction = (id: string, on: boolean, withPrereqs?: boolean) => Promise<{ error?: string; missing?: string[] }>;
@@ -133,11 +134,18 @@ export function ToggleBoard(p: Props) {
                         {isLocked && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-white">{T("🔒 Locked")}</span>}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-600">{p.descriptions[f.id]}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-500">
-                        {f.requires.length ? <>Needs {f.requires.join(", ")} · </> : null}
-                        <a href={`${guide}#${f.id}`} target="_blank" className="text-indigo-600 hover:underline">{T("Help")}</a>
-                        {blocked && <span className="font-medium text-amber-700"> {T("· Inactive until its prerequisites are on")}</span>}
-                      </p>
+                      <details className="group/f mt-1">
+                        <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[11px] font-medium text-indigo-600 hover:underline [&::-webkit-details-marker]:hidden">
+                          <span className="transition group-open/f:rotate-90" aria-hidden>▸</span> {T("What it does and how to use it")}
+                        </summary>
+                        <div className="mt-2 space-y-1.5 rounded-lg border border-indigo-100 bg-white px-3 py-2 text-xs text-slate-700">
+                          <p>{HOW_TO[f.id]}</p>
+                          {f.requires.length > 0 && <p><b>{T("Needs:")}</b> {f.requires.map((r) => `${r} ${FEATURE_MAP[r]?.name ?? ""}`).join(" · ")}</p>}
+                          {dependentsOf(f.id).length > 0 && <p><b>{T("Unlocks:")}</b> {dependentsOf(f.id).map((r) => `${r} ${FEATURE_MAP[r]?.name ?? ""}`).join(" · ")}</p>}
+                          <a href={`${guide}#${f.id}`} target="_blank" className="inline-block text-indigo-600 hover:underline">{T("Open in the feature guide ↗")}</a>
+                        </div>
+                      </details>
+                      {blocked && <p className="mt-0.5 text-[11px] font-medium text-amber-700">{T("· Inactive until its prerequisites are on")}</p>}
                       {blocked && (
                         <button onClick={() => run(f.id, true, true)} className="mt-1 text-xs font-semibold text-amber-700 underline">
                           {T("Turn on missing prerequisites")}

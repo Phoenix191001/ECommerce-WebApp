@@ -552,4 +552,8 @@ export const ur: Record<string, string> = {
   "Lock so the Store Owner can't change it": "لاک کریں تاکہ اسٹور مالک نہ بدل سکے",
   "Unlock": "ان لاک",
   "Lock": "لاک",
+  "What it does and how to use it": "یہ کیا کرتا ہے اور کیسے استعمال کریں",
+  "Needs:": "ضرورت:",
+  "Unlocks:": "اس سے کھلتا ہے:",
+  "Open in the feature guide ↗": "فیچر گائیڈ میں کھولیں ↗",
 };

@@ -51,3 +51,9 @@ test("display currency", () => {
   assert.equal(showMoney(1000, "PKR", { code: "USD", rate: 0.0036 }), "$3.60");
   assert.match(showMoney(1000, "PKR", { code: "ZZZ", rate: 2 }), /2,?000/);
 });
+
+test("every feature has a how-to explanation", async () => {
+  const { FEATURES } = await import("../../src/lib/features");
+  const { HOW_TO } = await import("../../src/lib/feature-help");
+  assert.deepEqual(FEATURES.filter((f) => !HOW_TO[f.id]?.trim()).map((f) => f.id), []);
+});

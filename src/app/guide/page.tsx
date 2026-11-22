@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { HOW_TO } from "@/lib/feature-help";
 import { DESCRIPTIONS, FEATURES, FEATURE_MAP, GROUP_LABELS, IMPLEMENTED, STARTER_PACK, unlocks, type FeatureGroup } from "@/lib/features";
 import { GuideSearch } from "@/components/guide-search";
 
@@ -152,6 +153,7 @@ export default function GuidePage() {
                           {!IMPLEMENTED.has(f.id) && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">Coming soon</span>}
                         </div>
                         <p className="mt-1 text-sm text-slate-600">{DESCRIPTIONS[f.id]}</p>
+                        <p className="mt-1 text-sm text-slate-700"><b>How to use it:</b> {HOW_TO[f.id]}</p>
                         <div className="mt-2 space-y-1 text-xs">
                           <p className="flex flex-wrap items-center gap-1"><span className="font-semibold text-slate-500">Needs:</span> {f.requires.length ? f.requires.map(pill) : <span className="text-slate-400">nothing</span>}</p>
                           {u.length > 0 && <p className="flex flex-wrap items-center gap-1"><span className="font-semibold text-slate-500">Unlocks:</span> {u.map(pill)}</p>}
