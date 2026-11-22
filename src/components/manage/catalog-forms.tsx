@@ -1,10 +1,10 @@
 "use client";
 
+import { FormMessage, usePT } from "@/components/manage/panel-lang";
 import { useActionState } from "react";
 import { answerQuestion, bulkUpdate, importProductsCsv, type MState } from "@/app/s/[site]/manage/manage-actions";
 import { KeepForm } from "@/components/keep-form";
-import { FormMessage, btnTealCls, inputCls } from "@/components/admin/ui";
-import { usePT } from "@/components/manage/panel-lang";
+import { btnTealCls, inputCls } from "@/components/admin/ui";
 
 const tealInput = inputCls.replaceAll("indigo", "emerald");
 

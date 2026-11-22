@@ -1,12 +1,12 @@
 "use client";
 
+import { FormMessage, usePT } from "@/components/manage/panel-lang";
 import { useActionState, useState } from "react";
 import { addWebhook, createApiKey, savePage, saveStorefrontExtras, type MState, type SecretState } from "@/app/s/[site]/manage/manage-actions";
 import { KeepForm } from "@/components/keep-form";
-import { Field, FormMessage, btnTealCls, inputCls } from "@/components/admin/ui";
+import { Field, btnTealCls, inputCls } from "@/components/admin/ui";
 import { PageBuilder } from "./page-builder";
 import type { Block } from "@/lib/blocks";
-import { usePT } from "@/components/manage/panel-lang";
 
 const tealInput = inputCls.replaceAll("indigo", "emerald");
 

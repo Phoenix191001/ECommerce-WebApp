@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import type { StoreContext } from "./tenant";
+import { translate } from "./tr-match";
 import { dirOf, isLang, type LangCode } from "./languages";
 import { ar, hi, pa, zh } from "./panel-locales";
 import { ur as urTr } from "./panel-tr/ur";
@@ -8,6 +9,11 @@ import { ar as arTr } from "./panel-tr/ar";
 import { hi as hiTr } from "./panel-tr/hi";
 import { pa as paTr } from "./panel-tr/pa";
 import { zh as zhTr } from "./panel-tr/zh";
+import { urMsg } from "./panel-tr/msg-ur";
+import { arMsg } from "./panel-tr/msg-ar";
+import { hiMsg } from "./panel-tr/msg-hi";
+import { paMsg } from "./panel-tr/msg-pa";
+import { zhMsg } from "./panel-tr/msg-zh";
 
 // Store panel text in six languages (keyed here for the menu, dashboard and lists; full sentences in panel-tr/). The staff member picks the language for themselves
 // (cookie plang_<storeId>); it is separate from the language shoppers choose on the storefront.
@@ -78,13 +84,15 @@ const ur: PanelDict = {
 
 const DICTS: Record<LangCode, PanelDict> = { en, ur, ar, hi, pa, zh };
 /** Full-sentence translations for the rest of the panel, keyed by the English text. */
-const TR: Partial<Record<LangCode, Record<string, string>>> = { ur: urTr, ar: arTr, hi: hiTr, pa: paTr, zh: zhTr };
+const TR: Partial<Record<LangCode, Record<string, string>>> = {
+  ur: { ...urTr, ...urMsg }, ar: { ...arTr, ...arMsg }, hi: { ...hiTr, ...hiMsg }, pa: { ...paTr, ...paMsg }, zh: { ...zhTr, ...zhMsg },
+};
 
 export async function panelPrefs(store: StoreContext): Promise<{ lang: LangCode; p: PanelDict; dir: "ltr" | "rtl"; t: (s: string) => string; tr: Record<string, string> }> {
   const v = (await cookies()).get(`plang_${store.id}`)?.value;
   const lang: LangCode = isLang(v) ? v : "en";
   const tr = TR[lang] ?? {};
-  return { lang, p: DICTS[lang], dir: dirOf(lang), t: (s: string) => tr[s] ?? s, tr };
+  return { lang, p: DICTS[lang], dir: dirOf(lang), t: (s: string) => translate(tr, s), tr };
 }
 
 export const pStatus = (p: PanelDict, s: string) => (p as Record<string, string>)[`st_${s}`] ?? s;

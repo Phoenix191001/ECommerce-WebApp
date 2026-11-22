@@ -1,8 +1,8 @@
 "use client";
 
+import { FormMessage, usePT } from "@/components/manage/panel-lang";
 import { startTransition, useActionState, useEffect, useRef } from "react";
-import { FormMessage, btnTealCls } from "@/components/admin/ui";
-import { usePT } from "@/components/manage/panel-lang";
+import { btnTealCls } from "@/components/admin/ui";
 
 type State = { error?: string; ok?: string; link?: string } | undefined;
 

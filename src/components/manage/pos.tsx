@@ -118,7 +118,7 @@ export function PosScreen({ site, products, currency, taxRate, barcode, trackSto
           )}
           {oq.queue.filter((q) => q.error).map((q) => (
             <p key={q.id} className="mt-1 text-rose-700">
-              ⚠️ Sale of {money(q.total, currency)} at {new Date(q.at).toLocaleTimeString()} couldn&apos;t sync: {q.error}{" "}
+              ⚠️ Sale of {money(q.total, currency)} at {new Date(q.at).toLocaleTimeString()} couldn&apos;t sync: {T(q.error ?? "")}{" "}
               <button onClick={() => oq.retry(q.id)} className="underline">{T("Retry")}</button> · <button onClick={() => confirm("Discard this sale record?") && oq.drop(q.id)} className="underline">{T("Discard")}</button>
             </p>
           ))}
@@ -185,10 +185,10 @@ export function PosScreen({ site, products, currency, taxRate, barcode, trackSto
           <button onClick={complete} disabled={pending || !lines.length || cash < total || total <= 0} className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-lg font-bold text-white shadow disabled:opacity-40">
             {pending ? T("Completing…") : T("Complete sale")}
           </button>
-          {msg?.error && <p role="alert" className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{msg.error}</p>}
+          {msg?.error && <p role="alert" className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{T(msg.error)}</p>}
           {msg?.ok && (
             <div role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              {msg.ok}
+              {T(msg.ok)}
               {receiptBase && msg.number && <a href={`${receiptBase}/${msg.number}`} target="_blank" className="ml-2 font-semibold underline">{T("🖨️ Print receipt")}</a>}
             </div>
           )}
@@ -211,8 +211,8 @@ function RefundBox({ site }: { site: string }) {
           <input name="amount" placeholder={T("Amount")} inputMode="numeric" required className="rounded-lg border border-slate-300 px-3 py-2" />
         </div>
         {s?.needsPin && <input name="pin" type="password" inputMode="numeric" placeholder={T("Manager PIN")} autoFocus className="w-full rounded-lg border-2 border-amber-400 px-3 py-2" />}
-        {s?.error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-rose-700">{s.error}</p>}
-        {s?.ok && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-700">{s.ok}</p>}
+        {s?.error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-rose-700">{T(s.error)}</p>}
+        {s?.ok && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-emerald-700">{T(s.ok)}</p>}
         <button className="rounded-lg bg-rose-600 px-4 py-2 font-semibold text-white" disabled={p}>{p ? T("Refunding…") : T("Refund cash")}</button>
       </KeepForm>
     </details>
@@ -227,7 +227,7 @@ export function OpenShiftForm({ site }: { site: string }) {
       <label className="block text-sm font-medium">{T("Opening cash in the drawer")}
         <input name="openingCash" inputMode="numeric" required autoFocus className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-lg" />
       </label>
-      {s?.error && <p className="text-sm text-rose-600">{s.error}</p>}
+      {s?.error && <p className="text-sm text-rose-600">{T(s.error)}</p>}
       <button className="w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 font-bold text-white" disabled={p}>{p ? T("Opening…") : T("Open shift")}</button>
     </KeepForm>
   );
@@ -258,7 +258,7 @@ export function CloseShiftForm({ site, currency }: { site: string; currency: str
     <KeepForm action={a} className="flex flex-wrap items-end gap-2 text-sm">
       <label className="font-medium">{T("Counted cash")}<input name="countedCash" inputMode="numeric" required className="ml-2 w-28 rounded-lg border border-slate-300 px-2 py-1.5" /></label>
       <button className="rounded-lg bg-slate-800 px-3 py-1.5 font-semibold text-white" disabled={p}>{T("Close shift")}</button>
-      {s?.error && <p className="w-full text-rose-600">{s.error}</p>}
+      {s?.error && <p className="w-full text-rose-600">{T(s.error)}</p>}
     </KeepForm>
   );
 }

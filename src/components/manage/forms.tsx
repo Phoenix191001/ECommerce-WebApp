@@ -1,15 +1,15 @@
 "use client";
 
+import { FormMessage, usePT } from "@/components/manage/panel-lang";
 import { KeepForm } from "@/components/keep-form";
 import { useActionState, useState } from "react";
 import {
   addStaff, changeSubdomain, ownerSetup, refundOrder, saveBranding, saveDiscount, saveProduct, saveSettings, setCustomDomain, staffLogin,
   type MState,
 } from "@/app/s/[site]/manage/manage-actions";
-import { Field, FormMessage, btnTealCls, inputCls } from "@/components/admin/ui";
+import { Field, btnTealCls, inputCls } from "@/components/admin/ui";
 import { ImageField } from "./image-field";
 import { FileField } from "./file-field";
-import { usePT } from "@/components/manage/panel-lang";
 
 const tealInput = inputCls.replaceAll("indigo", "emerald");
 
