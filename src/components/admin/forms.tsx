@@ -2,7 +2,7 @@
 
 import { KeepForm } from "@/components/keep-form";
 import { useActionState, useState } from "react";
-import {
+import { starterPack,
   addProduct, createInstance, createOwnerLink, deleteInstance, login, savePlan, setupAdmin, verifyTwoFactor,
   type FormState,
 } from "@/app/admin/actions";
@@ -209,5 +209,17 @@ export function PlanForm({
       <FormMessage state={state} />
       <button className={btnCls} disabled={pending}>{pending ? "Saving…" : plan ? "Save plan" : "Create plan"}</button>
     </KeepForm>
+  );
+}
+
+/** Super Admin: apply the starter pack to a store and say what changed. */
+export function AdminStarterPackButton({ instanceId }: { instanceId: string }) {
+  const [s, a, p] = useActionState<{ ok?: string; error?: string } | undefined, FormData>(() => starterPack(instanceId), undefined);
+  return (
+    <form action={a} className="flex flex-wrap items-center justify-end gap-2">
+      {s?.ok && <span role="status" className="text-xs text-emerald-700">✅ {s.ok}</span>}
+      {s?.error && <span role="alert" className="text-xs text-rose-700">{s.error}</span>}
+      <button className={btnCls} disabled={p}>{p ? "Applying…" : "✨ Apply starter pack"}</button>
+    </form>
   );
 }

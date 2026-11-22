@@ -10,10 +10,10 @@ import {
 import { storeUrl } from "@/lib/subdomain";
 import { formatMoney } from "@/lib/tenant";
 import {
-  changePlan, impersonateOwner, setInstanceStatus, setLimits, setToggle, setToggleLock, starterPack,
+  changePlan, impersonateOwner, setInstanceStatus, setLimits, setToggle, setToggleLock,
 } from "../../../actions";
-import { Badge, Card, STATUS_TONE, Stat, btnCls, btnSecondaryCls, inputCls } from "@/components/admin/ui";
-import { DeleteForm, OwnerLinkForm, ProductForm } from "@/components/admin/forms";
+import { Badge, Card, STATUS_TONE, Stat, btnSecondaryCls, inputCls } from "@/components/admin/ui";
+import { AdminStarterPackButton, DeleteForm, OwnerLinkForm, ProductForm } from "@/components/admin/forms";
 import { ToggleBoard } from "@/components/admin/toggles";
 
 export default async function InstancePage({
@@ -143,9 +143,7 @@ export default async function InstancePage({
         title="🧩 Feature toggles"
         accent="indigo"
         actions={
-          <form action={starterPack.bind(null, id)}>
-            <button className={btnCls}>✨ Apply starter pack</button>
-          </form>
+          <AdminStarterPackButton instanceId={id} />
         }
       >
         <p className="mb-4 text-sm text-slate-600">

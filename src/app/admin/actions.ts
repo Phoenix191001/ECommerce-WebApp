@@ -124,10 +124,13 @@ export async function setToggle(instanceId: string, featureId: string, on: boole
   return res;
 }
 
-export async function starterPack(instanceId: string) {
+export async function starterPack(instanceId: string): Promise<{ ok?: string; error?: string }> {
   const admin = await requireAdmin();
-  await applyStarterPack(instanceId, { email: admin.email, role: "super_admin" });
+  const res = await applyStarterPack(instanceId, { email: admin.email, role: "super_admin" });
   revalidatePath(`/admin/instances/${instanceId}`);
+  if (res.error) return { error: res.error };
+  const n = res.changed?.length ?? 0;
+  return { ok: n ? `Turned on ${n} starter feature(s).` : "The starter pack is already on for this store." };
 }
 
 async function loadInstance(id: string) {

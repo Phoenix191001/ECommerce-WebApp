@@ -134,9 +134,17 @@ const see = (p, t) => p.getByText(t).first().waitFor();
       await see(op, "Good things, delivered");
     });
 
+    await step("super admin: apply starter pack gives feedback", async () => {
+      await admin.goto(`${BASE}/admin/instances`);
+      const href = await admin.locator(`a[href^='/admin/instances/']`).evaluateAll((as, sub) => as.filter((a) => a.closest("tr")?.textContent?.includes(sub)).map((a) => a.getAttribute("href")).find((h) => /\/[0-9a-f]{24}$/.test(h)), SUB);
+      await admin.goto(BASE + href);
+      await admin.getByRole("button", { name: /Apply starter pack/ }).click();
+      await admin.getByText(/starter pack is already on|Turned on \d+ starter feature/).first().waitFor();
+    });
+
     await step("cleanup: export then delete the store", async () => {
-      await admin.goto(`${BASE}/admin/instances?q=${SUB}`);
-      const href = await admin.locator(`a[href^='/admin/instances/']`).evaluateAll((as, sub) => as.filter((a) => a.closest("tr,li,div")?.textContent?.includes(sub)).map((a) => a.getAttribute("href")).find((h) => /\/[0-9a-f]{24}$/.test(h)), SUB);
+      await admin.goto(`${BASE}/admin/instances`);
+      const href = await admin.locator(`a[href^='/admin/instances/']`).evaluateAll((as, sub) => as.filter((a) => a.closest("tr")?.textContent?.includes(sub)).map((a) => a.getAttribute("href")).find((h) => /\/[0-9a-f]{24}$/.test(h)), SUB);
       if (!href) throw new Error("store not listed");
       const storeId = href.split("/").pop();
       const [st] = await admin.evaluate(async (u) => { const r = await fetch(u); await r.text(); return [r.status]; }, `${BASE}/admin/instances/${storeId}/export`);
