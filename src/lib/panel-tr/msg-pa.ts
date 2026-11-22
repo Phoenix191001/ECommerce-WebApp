@@ -209,4 +209,6 @@ export const paMsg: Record<string, string> = {
   "Contact support to change it.": "بدلن لئی سپورٹ نال رابطہ کرو۔",
   "Design saved. Your store now uses it.": "ڈیزائن رکھیا گیا۔ تہاڈی دکان ہُن ایہی ورتدی اے۔",
   "Design reset to the default look.": "ڈیزائن مقررہ شکل تے واپس ہو گیا۔",
+  "Turned on {0} starter feature(s).": "{0} سٹارٹر فیچر چالو ہو گئے۔",
+  "The starter pack is already on. Every starter feature in your plan is working.": "سٹارٹر پیک پہلاں توں چالو اے۔ تہاڈے پلان دے سارے سٹارٹر فیچر کم کر رہے نیں۔",
 };

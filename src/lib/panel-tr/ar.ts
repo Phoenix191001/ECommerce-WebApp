@@ -642,4 +642,8 @@ export const ar: Record<string, string> = {
   "Fix it": "أصلحه",
   "Page text": "نص الصفحة",
   "Text on cards": "النص على البطاقات",
+  "Turning on…": "جارٍ التفعيل…",
+  "Continue →": "متابعة ←",
+  "Saved. On to the next step.": "تم الحفظ. ننتقل إلى الخطوة التالية.",
+  "Setup finished. Your store is ready to sell.": "اكتمل الإعداد. متجرك جاهز للبيع.",
 };

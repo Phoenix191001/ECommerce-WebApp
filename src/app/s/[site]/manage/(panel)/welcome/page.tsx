@@ -3,8 +3,8 @@ import { storeModels, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { FEATURE_MAP, STARTER_PACK } from "@/lib/features";
 import { Card, btnTealCls } from "@/components/admin/ui";
-import { BrandingForm, ProductEditor, SettingsForm } from "@/components/manage/forms";
-import { markOnboarding, ownerStarterPack } from "../../manage-actions";
+import { BrandingForm, ProductEditor, SettingsForm, StarterPackButton } from "@/components/manage/forms";
+import { finishSetup } from "../../manage-actions";
 import { panelPrefs } from "@/lib/panel-i18n";
 
 export const metadata = { title: "Setup wizard" };
@@ -17,9 +17,9 @@ const STEPS = [
   { id: "launch", label: "Launch", icon: "🚀" },
 ] as const;
 
-export default async function Wizard({ params, searchParams }: { params: Promise<{ site: string }>; searchParams: Promise<{ step?: string }> }) {
+export default async function Wizard({ params, searchParams }: { params: Promise<{ site: string }>; searchParams: Promise<{ step?: string; saved?: string }> }) {
   const { site } = await params;
-  const { step } = await searchParams;
+  const { step, saved } = await searchParams;
   const store = await requireStore(site);
   const { t: T } = await panelPrefs(store);
   await requireStaff(store, "settings");
@@ -52,10 +52,15 @@ export default async function Wizard({ params, searchParams }: { params: Promise
         </ol>
       </div>
 
+      {saved && STEPS.some((s) => s.id === saved) && (
+        <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800">
+          ✅ {T("Saved. On to the next step.")}
+        </p>
+      )}
       {current === "brand" && (
         <Card title={T("🎨 Make it yours")} accent="emerald">
           <p className="mb-4 text-sm text-slate-600">{T("Your store name and color appear on every page. Pick a color and watch the preview change.")}</p>
-          <BrandingForm site={site} name={store.name} color={store.branding.primaryColor} tagline={store.branding.tagline} logoUrl={store.branding.logoUrl} canColor={!!store.features["F-15"]} uploadUrl={`${store.base}/manage/upload`} storeId={store.id} />
+          <BrandingForm site={site} name={store.name} color={store.branding.primaryColor} tagline={store.branding.tagline} logoUrl={store.branding.logoUrl} canColor={!!store.features["F-15"]} uploadUrl={`${store.base}/manage/upload`} storeId={store.id} next={`${b}/welcome?step=product&saved=brand`} />
         </Card>
       )}
       {current === "product" && (
@@ -65,7 +70,7 @@ export default async function Wizard({ params, searchParams }: { params: Promise
           ) : (
             <>
               <p className="mb-4 text-sm text-slate-600">{T("Just a name and a price are enough to start. You can add photos with image links and fill in the rest later.")}</p>
-              <ProductEditor site={site} categories={categories} features={store.features} uploadUrl={`${store.base}/manage/upload`} storeId={store.id} />
+              <ProductEditor site={site} categories={categories} features={store.features} uploadUrl={`${store.base}/manage/upload`} storeId={store.id} returnTo="wizard" />
             </>
           )}
         </Card>
@@ -73,7 +78,7 @@ export default async function Wizard({ params, searchParams }: { params: Promise
       {current === "shipping" && (
         <Card title={T("🚚 Delivery, tax, and contact")} accent="amber">
           <p className="mb-4 text-sm text-slate-600">{T("Customers see delivery and tax at checkout before they pay. You can change these any time in Settings.")}</p>
-          <SettingsForm site={site} s={{ currency: store.currency, ...store.settings }} f={store.features} />
+          <SettingsForm site={site} s={{ currency: store.currency, ...store.settings }} f={store.features} next={`${b}/welcome?step=features&saved=shipping`} />
         </Card>
       )}
       {current === "features" && (
@@ -90,7 +95,8 @@ export default async function Wizard({ params, searchParams }: { params: Promise
               </li>
             ))}
           </ul>
-          <form action={ownerStarterPack.bind(null, site)}><button className={btnTealCls}>{T("✨ Turn on the starter pack")}</button></form>
+          <StarterPackButton site={site} label={T("✨ Turn on the starter pack")} />
+          <Link href={`${b}/welcome?step=launch`} className="mt-3 inline-block text-sm font-semibold text-emerald-700 hover:underline">{T("Continue →")}</Link>
         </Card>
       )}
       {current === "launch" && (
@@ -100,7 +106,7 @@ export default async function Wizard({ params, searchParams }: { params: Promise
             <li>{T("Place a test order with cash on delivery, then find it under")} <Link href={`${b}/orders`} className="text-emerald-700 underline">{T("Orders")}</Link> {T("and mark it confirmed.")}</li>
             <li>{T("Share your store link with customers on WhatsApp and social media.")}</li>
           </ol>
-          <form action={markOnboarding.bind(null, site, "launch")} className="mt-5"><button className={btnTealCls}>{T("🎉 Finish setup")}</button></form>
+          <form action={finishSetup.bind(null, site)} className="mt-5"><button className={btnTealCls}>{T("🎉 Finish setup")}</button></form>
         </Card>
       )}
 

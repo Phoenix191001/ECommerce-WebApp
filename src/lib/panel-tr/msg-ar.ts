@@ -209,4 +209,6 @@ export const arMsg: Record<string, string> = {
   "Contact support to change it.": "تواصل مع الدعم لتغييرها.",
   "Design saved. Your store now uses it.": "تم حفظ التصميم. متجرك يستخدمه الآن.",
   "Design reset to the default look.": "أُعيد التصميم إلى الشكل الافتراضي.",
+  "Turned on {0} starter feature(s).": "تم تفعيل {0} من ميزات البداية.",
+  "The starter pack is already on. Every starter feature in your plan is working.": "باقة البداية مفعّلة بالفعل. كل ميزات البداية في خطتك تعمل.",
 };

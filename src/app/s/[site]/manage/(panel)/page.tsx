@@ -17,7 +17,8 @@ function windows() {
   return { since: new Date(now - 30 * 86400_000), day14 };
 }
 
-export default async function ManageHome({ params }: { params: Promise<{ site: string }> }) {
+export default async function ManageHome({ params, searchParams }: { params: Promise<{ site: string }>; searchParams: Promise<{ setup?: string }> }) {
+  const setupDone = (await searchParams).setup === "done";
   const { site } = await params;
   const store = await requireStore(site);
   const user = await requireStaff(store);
@@ -80,6 +81,7 @@ export default async function ManageHome({ params }: { params: Promise<{ site: s
         {pendingCount > 0 && <Link href={`${b}/orders?status=pending`} className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">{lang !== "en" ? fill(p.newOrders, { n: pendingCount }) : `🔔 ${pendingCount} new order${pendingCount > 1 ? "s" : ""} to confirm`}</Link>}
       </div>
 
+      {setupDone && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800">🎉 {T("Setup finished. Your store is ready to sell.")}</p>}
       {showOnboarding && (
         <Card accent="emerald" title={p.setUp} actions={<form action={markOnboarding.bind(null, site, "dismiss")}><button className="text-xs text-slate-500 hover:text-slate-800">{p.hide}</button></form>}>
           <p className="mb-4 text-sm text-slate-600">{p.fiveSteps}</p>

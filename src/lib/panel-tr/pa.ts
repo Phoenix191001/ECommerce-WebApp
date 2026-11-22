@@ -642,4 +642,8 @@ export const pa: Record<string, string> = {
   "Fix it": "ٹھیک کرو",
   "Page text": "صفحے دی لکھت",
   "Text on cards": "کارڈاں تے لکھت",
+  "Turning on…": "چالو ہو رہیا اے…",
+  "Continue →": "اگے ودھو ←",
+  "Saved. On to the next step.": "رکھیا گیا۔ ہُن اگلا قدم۔",
+  "Setup finished. Your store is ready to sell.": "سیٹ اپ مکمل۔ تہاڈی دکان ویچن لئی تیار اے۔",
 };

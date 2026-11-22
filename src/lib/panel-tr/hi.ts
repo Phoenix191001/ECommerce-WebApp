@@ -642,4 +642,8 @@ export const hi: Record<string, string> = {
   "Fix it": "ठीक करें",
   "Page text": "पेज टेक्स्ट",
   "Text on cards": "कार्ड पर टेक्स्ट",
+  "Turning on…": "चालू हो रहा है…",
+  "Continue →": "आगे बढ़ें →",
+  "Saved. On to the next step.": "सहेजा गया। अब अगला कदम।",
+  "Setup finished. Your store is ready to sell.": "सेटअप पूरा। आपका स्टोर बेचने के लिए तैयार है।",
 };

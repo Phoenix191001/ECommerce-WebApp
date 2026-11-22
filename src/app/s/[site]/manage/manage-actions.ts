@@ -266,7 +266,7 @@ export async function saveProduct(site: string, id: string | null, _: MState, fo
   const alerted = productId ? await sendBackInStock(store, m, productId) : 0;
   await fireWebhook(store, "product.updated", { id: productId, name: d.name, price: d.price }).catch(() => {});
   refresh(store);
-  if (!id) redirect(`${store.base}/manage/products?saved=1`);
+  if (!id) redirect(form.get("returnTo") === "wizard" ? `${store.base}/manage/welcome?step=shipping&saved=product` : `${store.base}/manage/products?saved=1`);
   return { ok: alerted ? `Saved. Emailed ${alerted} shopper(s) waiting for it to be back in stock.` : "Saved." };
 }
 
@@ -600,11 +600,22 @@ export async function ownerToggle(site: string, id: string, on: boolean, withPre
   return res;
 }
 
-export async function ownerStarterPack(site: string) {
+/** Turns on the starter pack and says what changed (it's already on for new stores, so often nothing does). */
+export async function ownerStarterPack(site: string): Promise<MState> {
   const { store, user } = await ctx(site, "features");
-  await applyStarterPack(store.id, { email: actorEmail(user), role: "store_owner" });
+  const res = await applyStarterPack(store.id, { email: actorEmail(user), role: "store_owner" });
   await markOnboarding(site, "features");
   refresh(store);
+  if (res.error) return { error: res.error };
+  const n = res.changed?.length ?? 0;
+  return { ok: n ? `Turned on ${n} starter feature(s).` : "The starter pack is already on. Every starter feature in your plan is working." };
+}
+
+/** Last wizard step: mark setup finished and go to the dashboard. */
+export async function finishSetup(site: string) {
+  const { store } = await ctx(site, "settings");
+  await markOnboarding(site, "launch");
+  redirect(`${store.base}/manage?setup=done`);
 }
 
 // ---------- Settings ----------

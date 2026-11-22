@@ -209,4 +209,6 @@ export const urMsg: Record<string, string> = {
   "Contact support to change it.": "بدلنے کے لیے سپورٹ سے رابطہ کریں۔",
   "Design saved. Your store now uses it.": "ڈیزائن محفوظ ہو گیا۔ آپ کا اسٹور اب یہی استعمال کرتا ہے۔",
   "Design reset to the default look.": "ڈیزائن ڈیفالٹ شکل پر واپس ہو گیا۔",
+  "Turned on {0} starter feature(s).": "{0} اسٹارٹر فیچرز آن ہو گئے۔",
+  "The starter pack is already on. Every starter feature in your plan is working.": "اسٹارٹر پیک پہلے سے آن ہے۔ آپ کے پلان کے تمام اسٹارٹر فیچرز کام کر رہے ہیں۔",
 };

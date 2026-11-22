@@ -209,4 +209,6 @@ export const zhMsg: Record<string, string> = {
   "Contact support to change it.": "如需更改请联系客服。",
   "Design saved. Your store now uses it.": "设计已保存，店铺已应用。",
   "Design reset to the default look.": "设计已恢复为默认外观。",
+  "Turned on {0} starter feature(s).": "已开启 {0} 项入门功能。",
+  "The starter pack is already on. Every starter feature in your plan is working.": "入门套装已开启，套餐内的所有入门功能都在运行。",
 };

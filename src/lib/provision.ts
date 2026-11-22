@@ -1,6 +1,7 @@
 import "server-only";
 import crypto from "node:crypto";
 import { z } from "zod";
+import { after } from "next/server";
 import { Types } from "mongoose";
 import { platformDb, instanceDb } from "./db";
 import { ensurePlatformIndexes, platformModels } from "./models/platform";
@@ -18,12 +19,16 @@ export const newInstanceSchema = z.object({
   ownerEmail: z.email("Enter a valid owner email address."),
 });
 
+let platformIndexes: Promise<unknown> | undefined;
+
 /** Shared by the Super Admin form and self-serve signup (FR-A-01, FR-S-02). */
 export async function provisionInstance(d: z.infer<typeof newInstanceSchema>, actor: { email: string; role: "super_admin" | "system" }) {
   const sub = validateSubdomain(d.subdomain);
   if (!sub.ok) return { error: sub.error };
   const conn = await platformDb();
-  await ensurePlatformIndexes(conn);
+  // Platform indexes already exist after the first store; check them once per server instance.
+  platformIndexes ??= Promise.resolve(ensurePlatformIndexes(conn)).catch((e) => { platformIndexes = undefined; throw e; });
+  await platformIndexes;
   const { Plan, Instance, AuditLog } = platformModels(conn);
   const plan = await Plan.findById(d.planId).lean();
   if (!plan) return { error: "That plan no longer exists. Reload the page and pick another." };
@@ -39,7 +44,10 @@ export async function provisionInstance(d: z.infer<typeof newInstanceSchema>, ac
     branding: { primaryColor: "#4f46e5", tagline: "" },
   });
   const m = tenantModels(await instanceDb(String(inst._id)));
-  await ensureTenantIndexes(m);
+  // Only the owner account needs its index (unique email) before the owner can sign in. The rest of the
+  // new store's indexes are built after the response, so creating a store doesn't wait for ~40 of them.
+  await m.User.createIndexes();
+  after(() => ensureTenantIndexes(m).catch((e) => console.error("tenant indexes", String(inst._id), e)));
   await m.User.create({ email: d.ownerEmail, name: d.ownerName, role: "owner" });
   await AuditLog.create({
     instance: inst._id,

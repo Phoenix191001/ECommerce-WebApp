@@ -2,9 +2,10 @@
 
 import { FormMessage, usePT } from "@/components/manage/panel-lang";
 import { KeepForm } from "@/components/keep-form";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
-  addStaff, changeSubdomain, ownerSetup, refundOrder, saveBranding, saveDiscount, saveProduct, saveSettings, setCustomDomain, staffLogin,
+  addStaff, changeSubdomain, ownerStarterPack, ownerSetup, refundOrder, saveBranding, saveDiscount, saveProduct, saveSettings, setCustomDomain, staffLogin,
   type MState,
 } from "@/app/s/[site]/manage/manage-actions";
 import { Field, btnTealCls, inputCls } from "@/components/admin/ui";
@@ -116,8 +117,8 @@ function Section({ title, children, open }: { title: string; children: React.Rea
   );
 }
 
-export function ProductEditor({ site, product, categories, features = {}, uploadUrl, storeId, catalog = [], sellers = [] }: {
-  site: string; product?: P; categories: string[]; features?: Record<string, boolean>; uploadUrl: string; storeId: string;
+export function ProductEditor({ site, product, categories, features = {}, uploadUrl, storeId, catalog = [], sellers = [], returnTo }: {
+  site: string; product?: P; categories: string[]; features?: Record<string, boolean>; uploadUrl: string; storeId: string; returnTo?: "wizard";
   catalog?: CatalogItem[]; sellers?: { id: string; name: string }[];
 }) {
   const T = usePT();
@@ -134,6 +135,7 @@ export function ProductEditor({ site, product, categories, features = {}, upload
   const customText = (product?.customFields ?? []).map((c) => [c.label, c.required ? "required" : "optional", c.maxLength].join(" | ")).join("\n");
   return (
     <KeepForm action={submit} className="space-y-4">
+      {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
       <Field label={T("Product name")}><input name="name" required defaultValue={product?.name} className={tealInput} /></Field>
       <div className="grid gap-3 sm:grid-cols-3">
         <Field label={T("Price")}><input name="price" type="number" min="0" required defaultValue={product?.price} className={tealInput} /></Field>
@@ -309,9 +311,10 @@ export function StaffForm({ site, canAddManager }: { site: string; canAddManager
   );
 }
 
-export function BrandingForm({ site, name, color, tagline, logoUrl, canColor, uploadUrl, storeId }: { site: string; name: string; color: string; tagline: string; logoUrl?: string | null; canColor: boolean; uploadUrl: string; storeId: string }) {
+export function BrandingForm({ site, name, color, tagline, logoUrl, canColor, uploadUrl, storeId, next }: { site: string; name: string; color: string; tagline: string; logoUrl?: string | null; canColor: boolean; uploadUrl: string; storeId: string; next?: string }) {
   const T = usePT();
   const [s, a, p] = useActionState<MState, FormData>(saveBranding.bind(null, site), undefined);
+  useGoNext(s, next);
   const [c, setC] = useState(color);
   const [n, setN] = useState(name);
   const swatches = ["#4f46e5", "#7c3aed", "#db2777", "#e11d48", "#ea580c", "#d97706", "#16a34a", "#0d9488", "#0284c7", "#0f172a"];
@@ -361,9 +364,10 @@ type S = {
   referralReward: number; refundApprovalAbove: number;
 };
 
-export function SettingsForm({ site, s: v, f }: { site: string; s: S; f: Record<string, boolean> }) {
+export function SettingsForm({ site, s: v, f, next }: { site: string; s: S; f: Record<string, boolean>; next?: string }) {
   const T = usePT();
   const [s, a, p] = useActionState<MState, FormData>(saveSettings.bind(null, site), undefined);
+  useGoNext(s, next);
   const off = (id: string) => (f[id] ? undefined : <span className="text-amber-700">Turn on {id} to use this.</span>);
   return (
     <KeepForm action={a} className="space-y-5">
@@ -438,5 +442,24 @@ export function SubdomainForm({ site, current, root, nextChange }: { site: strin
       <p className="text-xs text-slate-500">{nextChange ? `You can change it again on ${nextChange}.` : "You can change the address once every 30 days. Old links stop working."}</p>
       <FormMessage state={s} />
     </KeepForm>
+  );
+}
+
+/** In the setup wizard: after a successful save, go on to the next step (it shows a "saved" note). */
+function useGoNext(s: MState, next?: string) {
+  const router = useRouter();
+  useEffect(() => { if (next && s?.ok) router.push(next); }, [s, next, router]);
+}
+
+/** Turns on the starter pack and shows what happened. */
+export function StarterPackButton({ site, label }: { site: string; label: string }) {
+  const T = usePT();
+  const [s, a, p] = useActionState<MState, FormData>(() => ownerStarterPack(site), undefined);
+  return (
+    <form action={a} className="flex flex-wrap items-center gap-3">
+      <button className={btnTealCls} disabled={p}>{p ? T("Turning on…") : label}</button>
+      {s?.ok && <span role="status" className="text-sm text-emerald-700">✅ {T(s.ok)}</span>}
+      {s?.error && <span role="alert" className="text-sm text-rose-700">{T(s.error)}</span>}
+    </form>
   );
 }

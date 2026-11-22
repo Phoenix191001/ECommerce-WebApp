@@ -642,4 +642,8 @@ export const zh: Record<string, string> = {
   "Fix it": "修复",
   "Page text": "页面文字",
   "Text on cards": "卡片文字",
+  "Turning on…": "正在开启…",
+  "Continue →": "继续 →",
+  "Saved. On to the next step.": "已保存。进入下一步。",
+  "Setup finished. Your store is ready to sell.": "设置完成。你的店铺已可以开始销售。",
 };

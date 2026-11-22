@@ -209,4 +209,6 @@ export const hiMsg: Record<string, string> = {
   "Contact support to change it.": "बदलने के लिए सपोर्ट से संपर्क करें।",
   "Design saved. Your store now uses it.": "डिज़ाइन सहेजा गया। आपका स्टोर अब इसे इस्तेमाल करता है।",
   "Design reset to the default look.": "डिज़ाइन डिफ़ॉल्ट रूप पर वापस हो गया।",
+  "Turned on {0} starter feature(s).": "{0} स्टार्टर फ़ीचर चालू हो गए।",
+  "The starter pack is already on. Every starter feature in your plan is working.": "स्टार्टर पैक पहले से चालू है। आपके प्लान के सभी स्टार्टर फ़ीचर काम कर रहे हैं।",
 };

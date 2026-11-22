@@ -642,4 +642,8 @@ export const ur: Record<string, string> = {
   "Fix it": "ٹھیک کریں",
   "Page text": "صفحے کا متن",
   "Text on cards": "کارڈز پر متن",
+  "Turning on…": "آن ہو رہا ہے…",
+  "Continue →": "آگے بڑھیں ←",
+  "Saved. On to the next step.": "محفوظ ہو گیا۔ اب اگلا قدم۔",
+  "Setup finished. Your store is ready to sell.": "سیٹ اپ مکمل۔ آپ کا اسٹور فروخت کے لیے تیار ہے۔",
 };

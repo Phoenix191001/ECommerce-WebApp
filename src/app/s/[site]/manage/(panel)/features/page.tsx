@@ -2,9 +2,10 @@ import Link from "next/link";
 import { requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { FEATURES, GROUP_LABELS, IMPLEMENTED, type FeatureGroup } from "@/lib/features";
-import { Badge, Card, btnTealCls } from "@/components/admin/ui";
+import { Badge, Card } from "@/components/admin/ui";
 import { ToggleBoard } from "@/components/admin/toggles";
-import { ownerStarterPack, ownerToggle } from "../../manage-actions";
+import { ownerToggle } from "../../manage-actions";
+import { StarterPackButton } from "@/components/manage/forms";
 import { panelPrefs } from "@/lib/panel-i18n";
 import { featureText } from "@/lib/feature-i18n";
 
@@ -28,7 +29,7 @@ export default async function Features({ params }: { params: Promise<{ site: str
           {T("Turn features on or off for your store. Changes show on your storefront within seconds. Your")} <b>{store.planName}</b> {T(`plan includes ${store.planFeatures.length} of ${FEATURES.length} features.`)}
         </p>
       </div>
-      <Card accent="emerald" title={T("How features work")} actions={<form action={ownerStarterPack.bind(null, site)}><button className={btnTealCls}>{T("✨ Turn on starter pack")}</button></form>}>
+      <Card accent="emerald" title={T("How features work")} actions={<StarterPackButton site={site} label={T("✨ Turn on starter pack")} />}>
         <ul className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
           <li>{T("🔗 Some features need others first. Turning one on offers to switch on what it needs.")}</li>
           <li>🔒 <b>{T("Locked")}</b> {T("switches are set by the platform. Contact support to change them.")}</li>
