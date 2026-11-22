@@ -4,6 +4,10 @@ import type { StoreContext } from "./tenant";
 import { dirOf, isLang, type LangCode } from "./languages";
 import { ar, hi, pa, zh } from "./panel-locales";
 import { ur as urTr } from "./panel-tr/ur";
+import { ar as arTr } from "./panel-tr/ar";
+import { hi as hiTr } from "./panel-tr/hi";
+import { pa as paTr } from "./panel-tr/pa";
+import { zh as zhTr } from "./panel-tr/zh";
 
 // Store panel text in six languages (keyed here for the menu, dashboard and lists; full sentences in panel-tr/). The staff member picks the language for themselves
 // (cookie plang_<storeId>); it is separate from the language shoppers choose on the storefront.
@@ -74,7 +78,7 @@ const ur: PanelDict = {
 
 const DICTS: Record<LangCode, PanelDict> = { en, ur, ar, hi, pa, zh };
 /** Full-sentence translations for the rest of the panel, keyed by the English text. */
-const TR: Partial<Record<LangCode, Record<string, string>>> = { ur: urTr };
+const TR: Partial<Record<LangCode, Record<string, string>>> = { ur: urTr, ar: arTr, hi: hiTr, pa: paTr, zh: zhTr };
 
 export async function panelPrefs(store: StoreContext): Promise<{ lang: LangCode; p: PanelDict; dir: "ltr" | "rtl"; t: (s: string) => string; tr: Record<string, string> }> {
   const v = (await cookies()).get(`plang_${store.id}`)?.value;

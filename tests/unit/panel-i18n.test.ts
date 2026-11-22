@@ -3,6 +3,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { ur } from "../../src/lib/panel-tr/ur";
+import { ar } from "../../src/lib/panel-tr/ar";
+import { hi } from "../../src/lib/panel-tr/hi";
+import { pa } from "../../src/lib/panel-tr/pa";
+import { zh } from "../../src/lib/panel-tr/zh";
+
+const LANG_TR: Record<string, Record<string, string>> = { ur, ar, hi, pa, zh };
 
 // Examples and technical text that stay as they are in every language.
 const SAME = new Set([
@@ -15,13 +21,14 @@ function walk(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : e.name.endsWith(".tsx") ? [path.join(dir, e.name)] : []));
 }
 
-test("every store panel text has an Urdu translation", () => {
+for (const [code, tr] of Object.entries(LANG_TR))
+test(`every store panel text has a ${code} translation`, () => {
   const files = [...walk("src/app/s/[site]/manage/(panel)"), ...walk("src/components/manage"), "src/components/admin/toggles.tsx"];
   const missing = new Set<string>();
   for (const f of files)
     for (const m of fs.readFileSync(f, "utf8").matchAll(/(?<![\w.$])T\(("(?:[^"\\]|\\.)*")\)/g)) {
       const s = JSON.parse(m[1]) as string;
-      if (!SAME.has(s) && !ur[s]) missing.add(s);
+      if (!SAME.has(s) && !tr[s]) missing.add(s);
     }
   assert.deepEqual([...missing], []);
 });
