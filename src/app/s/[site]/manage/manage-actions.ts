@@ -14,6 +14,7 @@ import { loginAs } from "@/lib/store-login";
 import { storeUrl, validateSubdomain } from "@/lib/subdomain";
 import { cookies, headers } from "next/headers";
 import { applyStarterPack, applyToggle, type ToggleResult } from "@/lib/toggles";
+import { docLang, docs, emailWrap } from "@/lib/doc-i18n";
 import { esc, sendEmail } from "@/lib/email";
 import { addProjectDomain, domainsConfigured, removeProjectDomain } from "@/lib/vercel-domains";
 import type { OrderStatus } from "@/lib/models/tenant";
@@ -317,8 +318,10 @@ export async function setOrderStatus(site: string, number: number, status: Order
   await fireWebhook(store, "order.status_changed", { number, from: old, to: status }).catch(() => {});
   await audit(store, actorEmail(user), "order.status", `#${number}`, old, status);
   if (store.features["F-41"] && o.customer.email) {
-    const label = { confirmed: "is confirmed", shipped: "is on the way", delivered: "was delivered", cancelled: "was cancelled" }[status as string] ?? `is ${status}`;
-    await sendEmail(m, o.customer.email, `${store.name}: order #${number} ${label}`, `<p>Hi ${esc(o.customer.name)},</p><p>Your order #${number} ${label}.</p>`);
+    const lang = docLang(store, o.lang);
+    const { d, f: L } = docs(lang);
+    const label = (d as Record<string, string>)[`st_${status}`] ?? String(status);
+    await sendEmail(m, o.customer.email, L("statusSubject", { store: store.name, n: number, status: label }), emailWrap(lang, `<p>${L("hi", { name: esc(o.customer.name) })}</p><p>${L("statusLine", { n: number, status: label })}</p>`));
   }
   refresh(store);
 }
@@ -440,8 +443,11 @@ export async function shipItems(site: string, number: number, _: MState, form: F
   } else o.history.push({ status: o.status, at: new Date(), by: user.name, note: `Partly shipped. ${note}` });
   await o.save();
   await audit(store, actorEmail(user), "order.shipment", `#${number}`, undefined, note);
-  if (store.features["F-41"] && o.customer.email)
-    await sendEmail(m, o.customer.email, `${store.name}: part of order #${number} is on the way`, `<p>Hi ${esc(o.customer.name)},</p><p>${esc(note)}</p>${all ? "<p>That's everything in your order.</p>" : "<p>The rest of your order will follow.</p>"}`);
+  if (store.features["F-41"] && o.customer.email) {
+    const lang = docLang(store, o.lang);
+    const { f: L } = docs(lang);
+    await sendEmail(m, o.customer.email, L("partSubject", { store: store.name, n: number }), emailWrap(lang, `<p>${L("hi", { name: esc(o.customer.name) })}</p><p>${esc(note)}</p><p>${L(all ? "partAll" : "partRest")}</p>`));
+  }
   await notifyOrderPush(store, m, number, all ? "shipped" : "partly").catch(() => {});
   await fireWebhook(store, "order.status_changed", { number, shipment: o.shipments.length, complete: all }).catch(() => {});
   refresh(store);
@@ -830,8 +836,12 @@ export async function decideReturn(site: string, id: string, decision: "approved
       await m.User.updateOne({ _id: r.user }, { $inc: { storeCredit: amount }, $push: { creditHistory: { amount, reason: `Return on order #${r.orderNumber}`, at: new Date() } } });
     }
     if (o?.customer.email && store.features["F-41"])
-      await sendEmail(m, o.customer.email, `${store.name}: your return for order #${r.orderNumber} is complete`,
-        `<p>Hi ${esc(o.customer.name)}, your ${r.type} for order #${r.orderNumber} is complete.</p>`);
+    {
+      const lang = docLang(store, o.lang);
+      const { f: L } = docs(lang);
+      await sendEmail(m, o.customer.email, L("returnSubject", { store: store.name, n: r.orderNumber }),
+        emailWrap(lang, `<p>${L("hi", { name: esc(o.customer.name) })}</p><p>${L("returnDone", { n: r.orderNumber, type: L(`rt_${r.type}` as "rt_refund") })}</p>`));
+    }
   }
   await audit(store, actorEmail(user), `return.${decision}`, `#${r.orderNumber}`);
   refresh(store);
@@ -846,7 +856,7 @@ export async function staffReply(site: string, id: string, _: MState, form: Form
   const close = form.get("close") === "1";
   const t = await m.Ticket.findByIdAndUpdate(id, { $push: { messages: { from: "staff", name: user.name, text, at: new Date() } }, $set: { status: close ? "closed" : "open" } }, { returnDocument: "after" }).lean();
   if (t?.email && store.features["F-41"])
-    await sendEmail(m, t.email, `${store.name}: reply to “${t.subject}”`, `<p>${esc(text).replace(/\n/g, "<br>")}</p><p>— ${esc(user.name)}, ${esc(store.name)}</p>`);
+    await sendEmail(m, t.email, docs(docLang(store)).f("ticketSubject", { store: store.name, subject: t.subject }), `<p>${esc(text).replace(/\n/g, "<br>")}</p><p>— ${esc(user.name)}, ${esc(store.name)}</p>`);
   refresh(store);
   return { ok: close ? "Reply sent and ticket closed." : "Reply sent." };
 }

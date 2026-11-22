@@ -128,6 +128,7 @@ export interface Order {
   refunds: { amount: number; reason: string; by: string; approvedBy?: string; at: Date }[];
   trackingToken: string;
   note: string;
+  lang?: string; // shopper's language when ordering, for emails
   giftWrap: boolean; // F-74
   giftMessage: string;
   giftWrapFee: number;
@@ -333,6 +334,7 @@ const orderSchema = new Schema<Order>(
     total: { type: Number, required: true },
     paymentMethod: { type: String, enum: ["cod", "cash", "card", "wallet"], required: true },
     paymentStatus: { type: String, enum: ["unpaid", "paid", "refunded", "partially_refunded"], default: "unpaid" },
+    lang: String,
     status: {
       type: String,
       enum: ["pending", "confirmed", "shipped", "delivered", "cancelled", "refunded"],
@@ -464,6 +466,7 @@ export interface StockAlert {
   variant?: Types.ObjectId;
   email: string;
   notified: boolean;
+  lang?: string;
   createdAt?: Date;
 }
 
@@ -560,6 +563,7 @@ const stockAlertSchema = new Schema<StockAlert>(
     variant: Schema.Types.ObjectId,
     email: { type: String, required: true, lowercase: true, trim: true },
     notified: { type: Boolean, default: false },
+    lang: String,
   },
   { timestamps: true },
 );

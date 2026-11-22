@@ -2,6 +2,7 @@
 
 import { Types } from "mongoose";
 import { staffCtx } from "@/lib/manage-ctx";
+import { docLang, docs } from "@/lib/doc-i18n";
 import { esc, sendEmail } from "@/lib/email";
 
 export type Inbox = {
@@ -38,7 +39,7 @@ export async function chatReply(site: string, id: string, text: string): Promise
   await t.save();
   // If the shopper left more than 10 minutes ago and gave an email, send the reply there too.
   if (t.email && store.features["F-41"] && visitorLast && Date.now() - new Date(visitorLast.at).getTime() > 10 * 60_000)
-    await sendEmail(m, t.email, `${store.name} replied to your chat`, `<p>${esc(msg).replace(/\n/g, "<br>")}</p><p>— ${esc(user.name)}, ${esc(store.name)}</p>`).catch(() => {});
+    await sendEmail(m, t.email, docs(docLang(store)).f("chatSubject", { store: store.name }), `<p>${esc(msg).replace(/\n/g, "<br>")}</p><p>— ${esc(user.name)}, ${esc(store.name)}</p>`).catch(() => {});
   return {};
 }
 

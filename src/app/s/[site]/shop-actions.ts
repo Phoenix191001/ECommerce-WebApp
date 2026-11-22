@@ -20,7 +20,8 @@ import { affiliateForOrder } from "@/lib/affiliates";
 import { abBucket, recordConversion } from "@/lib/ab";
 import { displayCurrency } from "@/lib/currency";
 import { alertApps } from "@/lib/app-alerts";
-import { storeLanguages } from "@/lib/store-prefs";
+import { storeLanguages, storePrefs } from "@/lib/store-prefs";
+import { docs, emailWrap } from "@/lib/doc-i18n";
 import type { Lang } from "@/lib/i18n";
 import { scoreOrder } from "@/lib/risk";
 import { fireWebhook } from "@/lib/webhooks";
@@ -240,6 +241,7 @@ export async function placeOrder(site: string, _: ShopState, form: FormData): Pr
     ? new Map((await m.Product.find({ _id: { $in: view.items.map((i) => i.product) }, seller: { $exists: true } }, { seller: 1 }).lean()).map((p) => [String(p._id), p.seller]))
     : new Map();
   const trackingToken = crypto.randomBytes(16).toString("base64url");
+  const shopperLang = (await storePrefs(s)).lang;
   const order = await m.Order.create({
     number,
     channel: "online",
@@ -284,6 +286,7 @@ export async function placeOrder(site: string, _: ShopState, form: FormData): Pr
     history: [{ status: "pending", at: new Date(), note: "Order placed" }],
     trackingToken,
     note: d.note,
+    lang: shopperLang,
   });
   cart.items = [];
   cart.discountCode = undefined;
@@ -294,11 +297,12 @@ export async function placeOrder(site: string, _: ShopState, form: FormData): Pr
     const rows = order.items
       .map((i) => `<tr><td>${esc(i.name)}${i.variantName ? ` (${esc(i.variantName)})` : ""} × ${i.qty}</td><td align="right">${formatMoney(i.price * i.qty, s.currency)}</td></tr>`)
       .join("");
+    const { f: L } = docs(shopperLang);
     await sendEmail(
       m,
       d.email,
-      `${s.name}: order #${number} received`,
-      `<h2>Thank you, ${esc(d.name)}!</h2><p>We received your order #${number}.</p><table width="100%">${rows}<tr><td><b>Total</b></td><td align="right"><b>${formatMoney(order.total, s.currency)}</b></td></tr></table><p>Payment: cash on delivery.</p>`,
+      L("orderReceivedSubject", { store: s.name, n: number }),
+      emailWrap(shopperLang, `<h2>${L("thanks", { name: esc(d.name) })}</h2><p>${L("weReceived", { n: number })}</p><table width="100%">${rows}<tr><td><b>${L("total")}</b></td><td align="right"><b>${formatMoney(order.total, s.currency)}</b></td></tr></table><p>${L("payCod")}</p>`),
     );
   }
   await fireWebhook(s, "order.created", { number, total, items: order.items.length, customer: { name: d.name, city: d.city } }).catch(() => {});
@@ -512,7 +516,7 @@ export async function notifyWhenBack(site: string, productId: string, variantId:
   if (!Types.ObjectId.isValid(productId)) return { error: "Unknown product." };
   const m = await storeModels(s);
   const filter = { product: new Types.ObjectId(productId), variant: variantId && Types.ObjectId.isValid(variantId) ? new Types.ObjectId(variantId) : undefined, email, notified: false };
-  await m.StockAlert.updateOne(filter, { $setOnInsert: filter }, { upsert: true });
+  await m.StockAlert.updateOne(filter, { $setOnInsert: filter, $set: { lang: (await storePrefs(s)).lang } }, { upsert: true });
   return { ok: "We'll email you when it's back in stock." };
 }
 
