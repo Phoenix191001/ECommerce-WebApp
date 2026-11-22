@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { storeModels, requireStore } from "@/lib/tenant";
 import { requireStaff } from "@/lib/store-auth";
 import { FEATURE_MAP, STARTER_PACK } from "@/lib/features";
@@ -29,6 +30,8 @@ export default async function Wizard({ params, searchParams }: { params: Promise
   const current = STEPS.find((s) => s.id === step)?.id ?? STEPS.find((s) => !done.has(s.id))?.id ?? "launch";
   const idx = STEPS.findIndex((s) => s.id === current);
   const b = `${store.base}/manage`;
+  // Always name the step in the address, so saving a step shows its result and then moves on.
+  if (step !== current) redirect(`${b}/welcome?step=${current}${saved ? `&saved=${saved}` : ""}`);
   const next = STEPS[idx + 1];
   const nextLink = next ? `${b}/welcome?step=${next.id}` : b;
   const categories = await m.Product.distinct("category", { category: { $ne: "" } });
