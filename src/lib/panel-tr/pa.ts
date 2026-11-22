@@ -638,4 +638,8 @@ export const pa: Record<string, string> = {
   "Running shoes": "دوڑن والی جُتی",
   "Laptop backpack": "لیپ ٹاپ بستہ",
   "View store ↗": "دکان ویکھو ↗",
+  "Some text will be hard to read:": "کجھ لکھت پڑھن وچ اوکھی ہووے گی:",
+  "Fix it": "ٹھیک کرو",
+  "Page text": "صفحے دی لکھت",
+  "Text on cards": "کارڈاں تے لکھت",
 };

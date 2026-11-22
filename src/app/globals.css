@@ -59,13 +59,16 @@ body {
 .store-themed .text-brand { color: var(--st-link); }
 .store-themed .bg-rose-500 { background-color: var(--st-sale); }
 .store-themed .st-header.st-header { background-color: var(--st-header); color: var(--st-header-text); border-color: color-mix(in srgb, var(--st-header-text) 12%, var(--st-header)); }
-.store-themed .st-header a, .store-themed .st-header button, .store-themed .st-header .text-brand, .store-themed .st-header .text-slate-600 { color: var(--st-header-text); }
+.store-themed .st-header a:not(.btn-brand), .store-themed .st-header button:not(.btn-brand), .store-themed .st-header .text-brand, .store-themed .st-header .text-slate-600 { color: var(--st-header-text); }
+.store-themed .st-header .btn-brand { color: var(--st-button-text); }
 .store-themed .st-header .hover\:bg-slate-100:hover { background-color: color-mix(in srgb, var(--st-header-text) 10%, transparent); }
 .store-themed .st-footer.st-footer { background-color: var(--st-footer); border-color: color-mix(in srgb, var(--st-footer-text) 15%, var(--st-footer)); }
 .store-themed .st-footer, .store-themed .st-footer .text-slate-500, .store-themed .st-footer a { color: var(--st-footer-text); }
 .store-themed .st-announce.st-announce { background-color: var(--st-announce); color: var(--st-announce-text); }
 .store-themed .st-hero { background-image: linear-gradient(135deg, var(--st-hero-from), var(--st-hero-to)); color: var(--st-hero-text); }
 .store-themed .st-hero .text-white, .store-themed .st-hero .text-white\/80, .store-themed .st-hero .text-white\/90 { color: var(--st-hero-text); }
+.store-themed .bg-brand-soft { background-color: color-mix(in srgb, var(--st-button) 10%, var(--st-surface)); }
+.store-themed .st-hero .st-hero-btn { background-color: var(--st-hero-text); color: var(--st-hero-from); }
 @media (min-width: 768px) { .store-themed .st-grid { grid-template-columns: repeat(var(--st-cols), minmax(0, 1fr)); } }
 .store-themed.st-card-border .st-grid > li { box-shadow: none; }
 .store-themed.st-card-flat .st-grid > li { box-shadow: none; border-color: transparent; background: transparent; }

@@ -50,7 +50,7 @@ export const PRESETS: Record<string, { name: string; theme: Omit<Theme, "preset"
   },
   boutique: {
     name: "Boutique",
-    theme: { ...base, bg: "#fbf7f4", surface: "#ffffff", text: "#3f2d2a", muted: "#8a7570", border: "#eaded8", header: "#fbf7f4", headerText: "#3f2d2a", footer: "#3f2d2a", footerText: "#eaded8", button: "#9f5f4b", buttonText: "#ffffff", link: "#9f5f4b", sale: "#b4413b", announce: "#3f2d2a", announceText: "#fbf7f4", heroFrom: "#c08a74", heroTo: "#7d4b3d", font: "lora", headingFont: "playfair", radius: "small", grid: 3, cardStyle: "flat", heroAlign: "center" },
+    theme: { ...base, bg: "#fbf7f4", surface: "#ffffff", text: "#3f2d2a", muted: "#8a7570", border: "#eaded8", header: "#fbf7f4", headerText: "#3f2d2a", footer: "#3f2d2a", footerText: "#eaded8", button: "#9f5f4b", buttonText: "#ffffff", link: "#9f5f4b", sale: "#b4413b", announce: "#3f2d2a", announceText: "#fbf7f4", heroFrom: "#a8705b", heroTo: "#7d4b3d", font: "lora", headingFont: "playfair", radius: "small", grid: 3, cardStyle: "flat", heroAlign: "center" },
   },
   fresh: {
     name: "Fresh grocery",
@@ -62,7 +62,7 @@ export const PRESETS: Record<string, { name: string; theme: Omit<Theme, "preset"
   },
   candy: {
     name: "Candy",
-    theme: { ...base, bg: "#fff7fb", border: "#fbcfe8", header: "#ffffff", headerText: "#9d174d", footer: "#fdf2f8", footerText: "#9d174d", button: "#ec4899", link: "#db2777", announce: "#a855f7", heroFrom: "#f472b6", heroTo: "#a855f7", font: "poppins", headingFont: "poppins", radius: "pill" },
+    theme: { ...base, bg: "#fff7fb", border: "#fbcfe8", header: "#ffffff", headerText: "#9d174d", footer: "#fdf2f8", footerText: "#9d174d", button: "#ec4899", link: "#db2777", announce: "#a855f7", heroFrom: "#db2777", heroTo: "#9333ea", font: "poppins", headingFont: "poppins", radius: "pill" },
   },
   luxury: {
     name: "Luxury gold",
@@ -70,7 +70,7 @@ export const PRESETS: Record<string, { name: string; theme: Omit<Theme, "preset"
   },
   ocean: {
     name: "Ocean",
-    theme: { ...base, bg: "#f0f9ff", border: "#bae6fd", header: "#0c4a6e", headerText: "#ffffff", footer: "#0c4a6e", footerText: "#bae6fd", button: "#0284c7", link: "#0369a1", announce: "#0ea5e9", heroFrom: "#0284c7", heroTo: "#14b8a6", font: "dmsans", headingFont: "dmsans", radius: "medium" },
+    theme: { ...base, bg: "#f0f9ff", border: "#bae6fd", header: "#0c4a6e", headerText: "#ffffff", footer: "#0c4a6e", footerText: "#bae6fd", button: "#0284c7", link: "#0369a1", announce: "#0369a1", heroFrom: "#0284c7", heroTo: "#14b8a6", font: "dmsans", headingFont: "dmsans", radius: "medium" },
   },
 };
 
@@ -132,3 +132,18 @@ export function contrastText(hex: string): string {
 export function storeTheme(store: { features: Record<string, boolean>; branding: { primaryColor: string; theme?: Record<string, unknown> | null } }): Theme | null {
   return store.features["F-15"] && store.branding.theme ? cleanTheme(store.branding.theme, store.branding.primaryColor) : null;
 }
+
+const lum = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+/** WCAG contrast ratio between two colours (1 = same, 21 = black on white). */
+export const contrastRatio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+
+/** Text/background pairs that are hard to read (below 3:1), as [text key, background key, part name]. */
+export const READ_PAIRS = [
+  ["text", "bg", "Page text"], ["text", "surface", "Text on cards"], ["headerText", "header", "Header"], ["footerText", "footer", "Footer"],
+  ["buttonText", "button", "Buttons"], ["announceText", "announce", "Announcement bar"], ["heroText", "heroFrom", "Top banner"],
+] as const;
+export const hardToRead = (t: Theme) => READ_PAIRS.filter(([fg, bg]) => contrastRatio(t[fg], t[bg]) < 3);

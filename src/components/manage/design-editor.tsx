@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { FONTS, PRESETS, RADII, contrastText, fontHref, themeVars, type FontId, type Radius, type Theme } from "@/lib/theme";
+import { FONTS, PRESETS, RADII, contrastText, fontHref, hardToRead, themeVars, type FontId, type Radius, type Theme } from "@/lib/theme";
 import { saveDesign } from "@/app/s/[site]/manage/growth-actions";
 import { ImageField } from "./image-field";
 import { usePT } from "./panel-lang";
@@ -47,6 +47,18 @@ export function DesignEditor({ site, initial, storeName, uploadUrl, storeId, sav
           </div>
           {t.preset === "custom" && <p className="mt-1 text-xs text-slate-500">{T("Custom: you've changed a theme. Pick a theme again to start over.")}</p>}
         </section>
+
+        {hardToRead(t).length > 0 && (
+          <div role="alert" className="space-y-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <p className="font-semibold">⚠️ {T("Some text will be hard to read:")}</p>
+            {hardToRead(t).map(([fg, bg, part]) => (
+              <p key={fg + bg} className="flex flex-wrap items-center gap-2">
+                <span className="rounded px-2 py-0.5 text-xs" style={{ background: t[bg], color: t[fg] }}>{T(part)}</span>
+                <button type="button" onClick={() => set(fg, contrastText(t[bg]))} className="text-xs font-semibold text-teal-700 hover:underline">{T("Fix it")}</button>
+              </p>
+            ))}
+          </div>
+        )}
 
         {COLOR_GROUPS.map((g) => (
           <details key={g.title} open={g.title === "Page"} className="rounded-xl border border-slate-200 bg-white">
@@ -141,7 +153,7 @@ function Preview({ t, name, L }: { t: Theme; name: string; L: (s: string) => str
         <p className="text-[10px] font-semibold uppercase tracking-widest opacity-80">{L("Welcome to")}</p>
         <h3 className="text-2xl font-extrabold">{t.heroTitle || name}</h3>
         <p className="mt-1 opacity-90">{t.heroSubtitle || L("Your tagline shows here")}</p>
-        {t.heroButton && <span className="mt-3 inline-block rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-slate-900">{t.heroButton}</span>}
+        {t.heroButton && <span className="st-hero-btn mt-3 inline-block rounded-full bg-white px-4 py-1.5 text-xs font-semibold text-slate-900">{t.heroButton}</span>}
       </div>
       <div className="p-4">
         <div className="mb-3 flex gap-2"><span className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-400">{L("Search products…")}</span></div>

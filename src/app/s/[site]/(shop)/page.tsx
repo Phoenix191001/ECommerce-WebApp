@@ -49,7 +49,7 @@ export default async function StoreHome({ params, searchParams }: Props) {
         <p className="text-sm font-semibold uppercase tracking-widest text-white/80">{t.welcomeTo}</p>
         <h1 className="mt-1 text-4xl font-extrabold sm:text-5xl">{theme?.heroTitle || store.name}</h1>
         {(theme?.heroSubtitle || tagline) && <p className={`mt-3 max-w-xl text-lg text-white/90 ${centered ? "mx-auto" : ""}`}>{ab.headline ?? (theme?.heroSubtitle || tagline)}</p>}
-        {theme?.heroButton && f["F-01"] && <a href="#products" className="mt-5 inline-block rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-slate-900 shadow hover:brightness-95">{theme.heroButton}</a>}
+        {theme?.heroButton && f["F-01"] && <a href="#products" className="st-hero-btn mt-5 inline-block rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-slate-900 shadow hover:brightness-95">{theme.heroButton}</a>}
         {f["F-58"] && store.settings.freeShippingThreshold > 0 && (
           <p className="mt-5 inline-block rounded-full bg-white/20 px-4 py-1.5 text-sm font-medium backdrop-blur">
             🚚 {t.freeDeliveryOver} {formatMoney(store.settings.freeShippingThreshold, store.currency)}

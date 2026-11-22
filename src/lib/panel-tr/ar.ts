@@ -638,4 +638,8 @@ export const ar: Record<string, string> = {
   "Running shoes": "أحذية جري",
   "Laptop backpack": "حقيبة ظهر للحاسوب",
   "View store ↗": "عرض المتجر ↗",
+  "Some text will be hard to read:": "سيصعب قراءة بعض النصوص:",
+  "Fix it": "أصلحه",
+  "Page text": "نص الصفحة",
+  "Text on cards": "النص على البطاقات",
 };

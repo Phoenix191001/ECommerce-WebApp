@@ -28,3 +28,8 @@ test("theme turns into CSS variables and font links", () => {
   assert.equal(contrastText("#ffffff"), "#000000");
   assert.equal(contrastText("#000000"), "#ffffff");
 });
+
+import { hardToRead } from "../../src/lib/theme";
+test("ready-made themes have readable text everywhere", () => {
+  for (const [id, p] of Object.entries(PRESETS)) assert.deepEqual(hardToRead(cleanTheme(p.theme)).map((x) => x[2]), [], id);
+});

@@ -638,4 +638,8 @@ export const zh: Record<string, string> = {
   "Running shoes": "跑鞋",
   "Laptop backpack": "笔记本电脑背包",
   "View store ↗": "查看店铺 ↗",
+  "Some text will be hard to read:": "部分文字将难以阅读：",
+  "Fix it": "修复",
+  "Page text": "页面文字",
+  "Text on cards": "卡片文字",
 };

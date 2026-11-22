@@ -638,4 +638,8 @@ export const hi: Record<string, string> = {
   "Running shoes": "दौड़ने के जूते",
   "Laptop backpack": "लैपटॉप बैग",
   "View store ↗": "स्टोर देखें ↗",
+  "Some text will be hard to read:": "कुछ टेक्स्ट पढ़ने में मुश्किल होगा:",
+  "Fix it": "ठीक करें",
+  "Page text": "पेज टेक्स्ट",
+  "Text on cards": "कार्ड पर टेक्स्ट",
 };
