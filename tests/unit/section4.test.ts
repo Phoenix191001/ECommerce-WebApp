@@ -57,3 +57,17 @@ test("every feature has a how-to explanation", async () => {
   const { HOW_TO } = await import("../../src/lib/feature-help");
   assert.deepEqual(FEATURES.filter((f) => !HOW_TO[f.id]?.trim()).map((f) => f.id), []);
 });
+
+import { FEATURE_TEXT } from "../../src/lib/feature-i18n";
+import { FEATURES, GROUP_LABELS as GL } from "../../src/lib/features";
+
+test("every feature has a name, description and how-to in every language", () => {
+  for (const [code, t] of Object.entries(FEATURE_TEXT)) {
+    for (const g of Object.keys(GL)) assert.ok(t!.groups[g as keyof typeof GL], `${code} group ${g}`);
+    for (const f of FEATURES) {
+      const row = t!.rows[f.id];
+      assert.ok(row && row.every((x) => x.trim().length > 0), `${code} ${f.id}`);
+    }
+    assert.equal(Object.keys(t!.rows).length, FEATURES.length, code);
+  }
+});

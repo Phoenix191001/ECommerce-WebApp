@@ -556,4 +556,7 @@ export const ur: Record<string, string> = {
   "Needs:": "ضرورت:",
   "Unlocks:": "اس سے کھلتا ہے:",
   "Open in the feature guide ↗": "فیچر گائیڈ میں کھولیں ↗",
+  "On": "آن",
+  "In plan": "پلان میں",
+  "Locked": "لاک",
 };

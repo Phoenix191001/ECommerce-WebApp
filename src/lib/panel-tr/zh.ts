@@ -556,4 +556,7 @@ export const zh: Record<string, string> = {
   "Needs:": "需要：",
   "Unlocks:": "可解锁：",
   "Open in the feature guide ↗": "在功能指南中打开 ↗",
+  "On": "已开启",
+  "In plan": "套餐内",
+  "Locked": "已锁定",
 };

@@ -198,4 +198,13 @@ export const zhMsg: Record<string, string> = {
   "Reply sent and ticket closed.": "回复已发送，工单已关闭。",
   "Reply sent.": "回复已发送。",
   "Only the first 2,000 rows were imported.": "仅导入了前 2,000 行。",
+  "{0} of {1} on": "已开启 {0}/{1}",
+  "Turn on {0} with {1}": "开启 {0} 及 {1}",
+  "plan includes {0} of {1} features.": "套餐包含 {1} 项功能中的 {0} 项。",
+  "{0} needs {1} turned on first.": "{0} 需要先开启 {1}。",
+  "{0} ({1}) isn't included in the {2} plan.": "{0}（{1}）不在 {2} 套餐中。",
+  "Upgrade your plan to use it.": "升级套餐即可使用。",
+  "Add it to the plan on the Plans page first.": "请先在套餐页面将其加入套餐。",
+  "{0} ({1}) is locked by the platform admin.": "{0}（{1}）已被平台管理员锁定。",
+  "Contact support to change it.": "如需更改请联系客服。",
 };

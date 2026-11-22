@@ -19,6 +19,9 @@ type Props = {
   /** Super Admin only: lock / unlock toggles. */
   onLock?: (id: string, locked: boolean) => Promise<unknown>;
   guideHref?: string;
+  /** Feature names and how-tos in the viewer's language (English when left out). */
+  names?: Record<string, string>;
+  howTo?: Record<string, string>;
 };
 
 const GROUP_COLORS = [
@@ -40,6 +43,7 @@ export function ToggleBoard(p: Props) {
   const locked = new Set(p.locked);
   const impl = new Set(p.implemented);
   const guide = p.guideHref ?? "/guide";
+  const nm = (id: string) => p.names?.[id] ?? FEATURE_MAP[id]?.name ?? id;
 
   const run = (id: string, on: boolean, withPrereqs = false) =>
     start(async () => {
@@ -64,7 +68,7 @@ export function ToggleBoard(p: Props) {
         <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-medium">
           {(["all", "on", "available"] as const).map((k) => (
             <button key={k} onClick={() => setShow(k)} className={`rounded-md px-3 py-1.5 ${show === k ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600"}`}>
-              {k === "all" ? "All" : k === "on" ? `On (${onCount})` : "In plan"}
+              {k === "all" ? T("All") : k === "on" ? `${T("On")} (${onCount})` : T("In plan")}
             </button>
           ))}
         </div>
@@ -78,13 +82,13 @@ export function ToggleBoard(p: Props) {
       </div>
       {message && (
         <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          <span>⚠️ {message.text}</span>
+          <span>⚠️ {T(message.text)}</span>
           {message.missing?.length && message.id ? (
             <button
               onClick={() => run(message.id!, true, true)}
               className="rounded-md bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600"
             >
-              Turn on {message.id} with {message.missing.join(", ")}
+              {T(`Turn on ${message.id} with ${message.missing.join(", ")}`)}
             </button>
           ) : null}
         </div>
@@ -93,7 +97,7 @@ export function ToggleBoard(p: Props) {
         const shown = features.filter((f) => {
           if (show === "on" && !optimistic[f.id]) return false;
           if (show === "available" && !inPlan.has(f.id)) return false;
-          return !q || f.name.toLowerCase().includes(q) || f.id.toLowerCase() === q || f.id.toLowerCase().includes(q) || (p.descriptions[f.id] ?? "").toLowerCase().includes(q);
+          return !q || f.name.toLowerCase().includes(q) || nm(f.id).toLowerCase().includes(q) || f.id.toLowerCase() === q || f.id.toLowerCase().includes(q) || (p.descriptions[f.id] ?? "").toLowerCase().includes(q);
         });
         if (!shown.length) return null;
         const searching = !!q || show !== "all";
@@ -103,7 +107,7 @@ export function ToggleBoard(p: Props) {
             <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
               <span className={`h-2.5 w-2.5 rounded-full ${GROUP_COLORS[gi % GROUP_COLORS.length]}`} />
               {label}
-              <span className="ms-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{nOn} of {features.length} on</span>
+              <span className="ms-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{T(`${nOn} of ${features.length} on`)}</span>
               <span aria-hidden className="text-slate-400 transition group-open/acc:rotate-180">▾</span>
             </summary>
             <ul className="mx-3 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -118,7 +122,7 @@ export function ToggleBoard(p: Props) {
                     <button
                       role="switch"
                       aria-checked={on}
-                      aria-label={`${f.id} ${f.name}`}
+                      aria-label={`${f.id} ${nm(f.id)}`}
                       disabled={pending || ownerLocked || (!allowed && !on)}
                       onClick={() => run(f.id, !on)}
                       className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${on ? "bg-gradient-to-r from-indigo-500 to-violet-500" : "bg-slate-300"} disabled:cursor-not-allowed disabled:opacity-40`}
@@ -128,7 +132,7 @@ export function ToggleBoard(p: Props) {
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-900">
                         <span className="rounded bg-slate-100 px-1.5 font-mono text-[11px] text-slate-600">{f.id}</span>
-                        {f.name}
+                        {nm(f.id)}
                         {!impl.has(f.id) && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">{T("Coming soon")}</span>}
                         {!allowed && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">{T("Not in plan")}</span>}
                         {isLocked && <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-white">{T("🔒 Locked")}</span>}
@@ -139,9 +143,9 @@ export function ToggleBoard(p: Props) {
                           <span className="transition group-open/f:rotate-90" aria-hidden>▸</span> {T("What it does and how to use it")}
                         </summary>
                         <div className="mt-2 space-y-1.5 rounded-lg border border-indigo-100 bg-white px-3 py-2 text-xs text-slate-700">
-                          <p>{HOW_TO[f.id]}</p>
-                          {f.requires.length > 0 && <p><b>{T("Needs:")}</b> {f.requires.map((r) => `${r} ${FEATURE_MAP[r]?.name ?? ""}`).join(" · ")}</p>}
-                          {dependentsOf(f.id).length > 0 && <p><b>{T("Unlocks:")}</b> {dependentsOf(f.id).map((r) => `${r} ${FEATURE_MAP[r]?.name ?? ""}`).join(" · ")}</p>}
+                          <p>{p.howTo?.[f.id] ?? HOW_TO[f.id]}</p>
+                          {f.requires.length > 0 && <p><b>{T("Needs:")}</b> {f.requires.map((r) => `${r} ${nm(r)}`).join(" · ")}</p>}
+                          {dependentsOf(f.id).length > 0 && <p><b>{T("Unlocks:")}</b> {dependentsOf(f.id).map((r) => `${r} ${nm(r)}`).join(" · ")}</p>}
                           <a href={`${guide}#${f.id}`} target="_blank" className="inline-block text-indigo-600 hover:underline">{T("Open in the feature guide ↗")}</a>
                         </div>
                       </details>

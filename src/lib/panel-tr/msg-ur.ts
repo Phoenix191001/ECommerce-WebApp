@@ -198,4 +198,13 @@ export const urMsg: Record<string, string> = {
   "Reply sent and ticket closed.": "جواب بھیج دیا گیا اور ٹکٹ بند ہو گیا۔",
   "Reply sent.": "جواب بھیج دیا گیا۔",
   "Only the first 2,000 rows were imported.": "صرف پہلی 2,000 قطاریں امپورٹ ہوئیں۔",
+  "{0} of {1} on": "{1} میں سے {0} آن",
+  "Turn on {0} with {1}": "{0} کو {1} کے ساتھ آن کریں",
+  "plan includes {0} of {1} features.": "پلان میں {1} میں سے {0} فیچرز شامل ہیں۔",
+  "{0} needs {1} turned on first.": "{0} کے لیے پہلے {1} آن ہونا ضروری ہے۔",
+  "{0} ({1}) isn't included in the {2} plan.": "{0} ({1}) {2} پلان میں شامل نہیں۔",
+  "Upgrade your plan to use it.": "اسے استعمال کرنے کے لیے پلان اپ گریڈ کریں۔",
+  "Add it to the plan on the Plans page first.": "پہلے پلانز صفحے پر اسے پلان میں شامل کریں۔",
+  "{0} ({1}) is locked by the platform admin.": "{0} ({1}) کو پلیٹ فارم ایڈمن نے لاک کیا ہے۔",
+  "Contact support to change it.": "بدلنے کے لیے سپورٹ سے رابطہ کریں۔",
 };

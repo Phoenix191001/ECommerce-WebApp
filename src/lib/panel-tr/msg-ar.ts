@@ -198,4 +198,13 @@ export const arMsg: Record<string, string> = {
   "Reply sent and ticket closed.": "تم إرسال الرد وإغلاق التذكرة.",
   "Reply sent.": "تم إرسال الرد.",
   "Only the first 2,000 rows were imported.": "تم استيراد أول 2,000 صف فقط.",
+  "{0} of {1} on": "{0} من {1} مفعّلة",
+  "Turn on {0} with {1}": "فعّل {0} مع {1}",
+  "plan includes {0} of {1} features.": "تشمل الخطة {0} من {1} ميزة.",
+  "{0} needs {1} turned on first.": "{0} يحتاج تفعيل {1} أولًا.",
+  "{0} ({1}) isn't included in the {2} plan.": "{0} ({1}) غير مشمولة في خطة {2}.",
+  "Upgrade your plan to use it.": "رقِّ خطتك لاستخدامها.",
+  "Add it to the plan on the Plans page first.": "أضفها إلى الخطة من صفحة الخطط أولًا.",
+  "{0} ({1}) is locked by the platform admin.": "{0} ({1}) مقفلة من مدير المنصة.",
+  "Contact support to change it.": "تواصل مع الدعم لتغييرها.",
 };

@@ -198,4 +198,13 @@ export const paMsg: Record<string, string> = {
   "Reply sent and ticket closed.": "جواب بھیج دتا تے ٹکٹ بند ہو گیا۔",
   "Reply sent.": "جواب بھیج دتا۔",
   "Only the first 2,000 rows were imported.": "صرف پہلیاں 2,000 قطاراں امپورٹ ہوئیاں۔",
+  "{0} of {1} on": "{1} وچوں {0} چالو",
+  "Turn on {0} with {1}": "{0} نوں {1} نال چلاؤ",
+  "plan includes {0} of {1} features.": "پلان وچ {1} وچوں {0} فیچر شامل نیں۔",
+  "{0} needs {1} turned on first.": "{0} لئی پہلاں {1} چالو ہونا ضروری اے۔",
+  "{0} ({1}) isn't included in the {2} plan.": "{0} ({1}) {2} پلان وچ شامل نئیں۔",
+  "Upgrade your plan to use it.": "ایہنوں ورتن لئی پلان ودھاؤ۔",
+  "Add it to the plan on the Plans page first.": "پہلاں پلان صفحے تے ایہنوں پلان وچ پاؤ۔",
+  "{0} ({1}) is locked by the platform admin.": "{0} ({1}) نوں پلیٹ فارم ایڈمن نے تالا لایا اے۔",
+  "Contact support to change it.": "بدلن لئی سپورٹ نال رابطہ کرو۔",
 };

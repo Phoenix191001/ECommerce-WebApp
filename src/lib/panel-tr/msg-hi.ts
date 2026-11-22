@@ -198,4 +198,13 @@ export const hiMsg: Record<string, string> = {
   "Reply sent and ticket closed.": "जवाब भेजा गया और टिकट बंद हुआ।",
   "Reply sent.": "जवाब भेजा गया।",
   "Only the first 2,000 rows were imported.": "केवल पहली 2,000 पंक्तियाँ इम्पोर्ट हुईं।",
+  "{0} of {1} on": "{1} में से {0} चालू",
+  "Turn on {0} with {1}": "{0} को {1} के साथ चालू करें",
+  "plan includes {0} of {1} features.": "प्लान में {1} में से {0} फ़ीचर शामिल हैं।",
+  "{0} needs {1} turned on first.": "{0} के लिए पहले {1} चालू होना ज़रूरी है।",
+  "{0} ({1}) isn't included in the {2} plan.": "{0} ({1}) {2} प्लान में शामिल नहीं है।",
+  "Upgrade your plan to use it.": "इसे इस्तेमाल करने के लिए प्लान अपग्रेड करें।",
+  "Add it to the plan on the Plans page first.": "पहले प्लान पेज पर इसे प्लान में जोड़ें।",
+  "{0} ({1}) is locked by the platform admin.": "{0} ({1}) को प्लेटफ़ॉर्म एडमिन ने लॉक किया है।",
+  "Contact support to change it.": "बदलने के लिए सपोर्ट से संपर्क करें।",
 };

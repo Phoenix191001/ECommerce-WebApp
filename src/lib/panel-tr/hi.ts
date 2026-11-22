@@ -556,4 +556,7 @@ export const hi: Record<string, string> = {
   "Needs:": "ज़रूरत:",
   "Unlocks:": "इससे खुलता है:",
   "Open in the feature guide ↗": "फ़ीचर गाइड में खोलें ↗",
+  "On": "चालू",
+  "In plan": "प्लान में",
+  "Locked": "लॉक",
 };

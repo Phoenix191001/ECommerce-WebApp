@@ -556,4 +556,7 @@ export const ar: Record<string, string> = {
   "Needs:": "تحتاج:",
   "Unlocks:": "تفتح:",
   "Open in the feature guide ↗": "افتح في دليل الميزات ↗",
+  "On": "مفعّلة",
+  "In plan": "ضمن الخطة",
+  "Locked": "مقفلة",
 };

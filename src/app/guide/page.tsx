@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { HOW_TO } from "@/lib/feature-help";
-import { DESCRIPTIONS, FEATURES, FEATURE_MAP, GROUP_LABELS, IMPLEMENTED, STARTER_PACK, unlocks, type FeatureGroup } from "@/lib/features";
+import { featureText } from "@/lib/feature-i18n";
+import { LANGS, dirOf, isLang, type LangCode } from "@/lib/languages";
+import { FEATURES, GROUP_LABELS, IMPLEMENTED, STARTER_PACK, unlocks, type FeatureGroup } from "@/lib/features";
 import { GuideSearch } from "@/components/guide-search";
 
 export const metadata = { title: "Feature guide and tutorials" };
@@ -55,12 +56,26 @@ const TUTORIALS = [
   },
 ];
 
-export default function GuidePage() {
+// Labels for the feature map, which follows the language picked at the top.
+const MAP_TEXT: Record<LangCode, { map: string; starter: string; onByDefault: string; soon: string; how: string; needs: string; unlocks: string; nothing: string }> = {
+  en: { map: "Feature map", starter: "Starter pack", onByDefault: "On by default", soon: "Coming soon", how: "How to use it:", needs: "Needs:", unlocks: "Unlocks:", nothing: "nothing" },
+  ur: { map: "فیچرز کا نقشہ", starter: "اسٹارٹر پیک", onByDefault: "پہلے سے آن", soon: "جلد آ رہا ہے", how: "استعمال کا طریقہ:", needs: "ضرورت:", unlocks: "اس سے کھلتا ہے:", nothing: "کچھ نہیں" },
+  ar: { map: "خريطة الميزات", starter: "باقة البداية", onByDefault: "مفعّلة افتراضيًا", soon: "قريبًا", how: "طريقة الاستخدام:", needs: "يحتاج:", unlocks: "يفتح:", nothing: "لا شيء" },
+  hi: { map: "फ़ीचर मैप", starter: "स्टार्टर पैक", onByDefault: "पहले से चालू", soon: "जल्द आ रहा है", how: "इस्तेमाल कैसे करें:", needs: "ज़रूरत:", unlocks: "इससे खुलता है:", nothing: "कुछ नहीं" },
+  pa: { map: "فیچراں دا نقشہ", starter: "سٹارٹر پیک", onByDefault: "پہلاں توں چالو", soon: "چھیتی آ رہیا اے", how: "ورتن دا طریقہ:", needs: "ضرورت:", unlocks: "ایہدے نال کھلدا اے:", nothing: "کجھ نئیں" },
+  zh: { map: "功能地图", starter: "入门套装", onByDefault: "默认开启", soon: "即将推出", how: "使用方法：", needs: "需要：", unlocks: "可解锁：", nothing: "无" },
+};
+
+export default async function GuidePage({ searchParams }: { searchParams: Promise<{ lang?: string }> }) {
+  const { lang: q } = await searchParams;
+  const lang: LangCode = isLang(q) ? q : "en";
+  const ft = featureText(lang);
+  const L = MAP_TEXT[lang];
   const starter = new Set(STARTER_PACK);
-  const groups = (Object.keys(GROUP_LABELS) as FeatureGroup[]).map((g) => ({ g, label: GROUP_LABELS[g], features: FEATURES.filter((f) => f.group === g) }));
+  const groups = (Object.keys(GROUP_LABELS) as FeatureGroup[]).map((g) => ({ g, label: ft.group(g), features: FEATURES.filter((f) => f.group === g) }));
   const pill = (id: string) => (
     <a key={id} href={`#${id}`} className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100">
-      <span className="font-mono">{id}</span> {FEATURE_MAP[id]?.name}
+      <span className="font-mono">{id}</span> {ft.name(id)}
     </a>
   );
 
@@ -73,6 +88,11 @@ export default function GuidePage() {
           <p className="mt-2 max-w-2xl text-white/90">
             New here? Start with the tutorial for your role. Already know your way around? Jump to the feature map to see what every switch does and what it needs.
           </p>
+          <nav aria-label="Language" className="mt-4 flex flex-wrap gap-1.5 text-xs">
+            {LANGS.map((l) => (
+              <a key={l.code} href={`?lang=${l.code}#map`} className={`rounded-full px-3 py-1 ${l.code === lang ? "bg-white font-semibold text-indigo-700" : "bg-white/15 hover:bg-white/25"}`}>{l.native}</a>
+            ))}
+          </nav>
           <nav className="mt-6 flex flex-wrap gap-2 text-sm">
             <a href="#tutorials" className="rounded-full bg-white/15 px-4 py-1.5 backdrop-blur hover:bg-white/25">🎓 Tutorials</a>
             <a href="#recipes" className="rounded-full bg-white/15 px-4 py-1.5 backdrop-blur hover:bg-white/25">🧪 Recipes</a>
@@ -132,8 +152,8 @@ export default function GuidePage() {
           </ul>
         </section>
 
-        <section id="map">
-          <h2 className="mb-1 text-2xl font-bold">🗺️ Feature map</h2>
+        <section id="map" dir={dirOf(lang)} lang={lang}>
+          <h2 className="mb-1 text-2xl font-bold">🗺️ {L.map}</h2>
           <p className="mb-5 text-sm text-slate-600">All {FEATURES.length} features, with what each needs and what it unlocks. {IMPLEMENTED.size} are available now.</p>
           <GuideSearch />
           <div className="space-y-8" id="feature-list">
@@ -144,19 +164,19 @@ export default function GuidePage() {
                   {features.map((f) => {
                     const u = unlocks(f.id);
                     return (
-                      <article key={f.id} id={f.id} data-search={`${f.id} ${f.name} ${DESCRIPTIONS[f.id]}`.toLowerCase()} className="scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm target:ring-2 target:ring-violet-500">
+                      <article key={f.id} id={f.id} data-search={`${f.id} ${f.name} ${ft.name(f.id)} ${ft.desc(f.id)}`.toLowerCase()} className="scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm target:ring-2 target:ring-violet-500">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded bg-slate-100 px-1.5 font-mono text-xs text-slate-600">{f.id}</span>
-                          <h4 className="font-semibold">{f.name}</h4>
-                          {starter.has(f.id) && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">Starter pack</span>}
-                          {f.defaultOn && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-800">On by default</span>}
-                          {!IMPLEMENTED.has(f.id) && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">Coming soon</span>}
+                          <h4 className="font-semibold">{ft.name(f.id)}</h4>
+                          {starter.has(f.id) && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">{L.starter}</span>}
+                          {f.defaultOn && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-800">{L.onByDefault}</span>}
+                          {!IMPLEMENTED.has(f.id) && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700">{L.soon}</span>}
                         </div>
-                        <p className="mt-1 text-sm text-slate-600">{DESCRIPTIONS[f.id]}</p>
-                        <p className="mt-1 text-sm text-slate-700"><b>How to use it:</b> {HOW_TO[f.id]}</p>
+                        <p className="mt-1 text-sm text-slate-600">{ft.desc(f.id)}</p>
+                        <p className="mt-1 text-sm text-slate-700"><b>{L.how}</b> {ft.how(f.id)}</p>
                         <div className="mt-2 space-y-1 text-xs">
-                          <p className="flex flex-wrap items-center gap-1"><span className="font-semibold text-slate-500">Needs:</span> {f.requires.length ? f.requires.map(pill) : <span className="text-slate-400">nothing</span>}</p>
-                          {u.length > 0 && <p className="flex flex-wrap items-center gap-1"><span className="font-semibold text-slate-500">Unlocks:</span> {u.map(pill)}</p>}
+                          <p className="flex flex-wrap items-center gap-1"><span className="font-semibold text-slate-500">{L.needs}</span> {f.requires.length ? f.requires.map(pill) : <span className="text-slate-400">{L.nothing}</span>}</p>
+                          {u.length > 0 && <p className="flex flex-wrap items-center gap-1"><span className="font-semibold text-slate-500">{L.unlocks}</span> {u.map(pill)}</p>}
                         </div>
                       </article>
                     );

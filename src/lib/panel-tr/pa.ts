@@ -556,4 +556,7 @@ export const pa: Record<string, string> = {
   "Needs:": "ضرورت:",
   "Unlocks:": "ایہدے نال کھلدا اے:",
   "Open in the feature guide ↗": "فیچر گائیڈ وچ کھولو ↗",
+  "On": "چالو",
+  "In plan": "پلان وچ",
+  "Locked": "تالا",
 };
