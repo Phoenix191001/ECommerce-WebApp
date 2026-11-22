@@ -22,7 +22,7 @@ export interface Instance {
   toggles: Map<string, boolean>;
   lockedToggles: string[];
   limitOverrides?: { maxProducts?: number; maxStaff?: number; maxDomains?: number };
-  branding?: { primaryColor?: string; logoUrl?: string; tagline?: string };
+  branding?: { primaryColor?: string; logoUrl?: string; tagline?: string; theme?: Record<string, unknown> };
   currency: string;
   settings: StoreSettings;
   onboarding: { done: string[]; dismissed: boolean };
@@ -128,6 +128,7 @@ const instanceSchema = new Schema<Instance>(
       primaryColor: { type: String, default: "#111827" },
       logoUrl: String,
       tagline: { type: String, default: "" },
+      theme: Schema.Types.Mixed, // store design (F-15), see lib/theme.ts
     },
     currency: { type: String, default: "PKR" },
     settings: {

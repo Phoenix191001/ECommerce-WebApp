@@ -14,7 +14,7 @@ export type StoreContext = {
   customDomain?: string;
   status: "active" | "suspended";
   currency: string;
-  branding: { primaryColor: string; tagline: string; logoUrl?: string | null };
+  branding: { primaryColor: string; tagline: string; logoUrl?: string | null; theme?: Record<string, unknown> | null };
   settings: StoreSettings;
   toggles: ToggleState; // raw switch positions
   features: ToggleState; // effective state, read from one place (NFR-14)
@@ -83,6 +83,7 @@ export const getStore = cache(async (site: string): Promise<StoreContext | null>
       primaryColor: inst.branding?.primaryColor ?? "#4f46e5",
       tagline: inst.branding?.tagline ?? "",
       logoUrl: inst.branding?.logoUrl,
+      theme: inst.branding?.theme ?? null,
     },
     settings: { ...DEFAULT_SETTINGS, ...(inst.settings ?? {}) },
     toggles: raw,

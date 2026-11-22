@@ -207,4 +207,6 @@ export const urMsg: Record<string, string> = {
   "Add it to the plan on the Plans page first.": "پہلے پلانز صفحے پر اسے پلان میں شامل کریں۔",
   "{0} ({1}) is locked by the platform admin.": "{0} ({1}) کو پلیٹ فارم ایڈمن نے لاک کیا ہے۔",
   "Contact support to change it.": "بدلنے کے لیے سپورٹ سے رابطہ کریں۔",
+  "Design saved. Your store now uses it.": "ڈیزائن محفوظ ہو گیا۔ آپ کا اسٹور اب یہی استعمال کرتا ہے۔",
+  "Design reset to the default look.": "ڈیزائن ڈیفالٹ شکل پر واپس ہو گیا۔",
 };

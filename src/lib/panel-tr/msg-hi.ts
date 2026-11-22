@@ -207,4 +207,6 @@ export const hiMsg: Record<string, string> = {
   "Add it to the plan on the Plans page first.": "पहले प्लान पेज पर इसे प्लान में जोड़ें।",
   "{0} ({1}) is locked by the platform admin.": "{0} ({1}) को प्लेटफ़ॉर्म एडमिन ने लॉक किया है।",
   "Contact support to change it.": "बदलने के लिए सपोर्ट से संपर्क करें।",
+  "Design saved. Your store now uses it.": "डिज़ाइन सहेजा गया। आपका स्टोर अब इसे इस्तेमाल करता है।",
+  "Design reset to the default look.": "डिज़ाइन डिफ़ॉल्ट रूप पर वापस हो गया।",
 };

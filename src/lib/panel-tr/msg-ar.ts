@@ -207,4 +207,6 @@ export const arMsg: Record<string, string> = {
   "Add it to the plan on the Plans page first.": "أضفها إلى الخطة من صفحة الخطط أولًا.",
   "{0} ({1}) is locked by the platform admin.": "{0} ({1}) مقفلة من مدير المنصة.",
   "Contact support to change it.": "تواصل مع الدعم لتغييرها.",
+  "Design saved. Your store now uses it.": "تم حفظ التصميم. متجرك يستخدمه الآن.",
+  "Design reset to the default look.": "أُعيد التصميم إلى الشكل الافتراضي.",
 };

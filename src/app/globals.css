@@ -40,6 +40,36 @@ body {
 .store-dark input, .store-dark select, .store-dark textarea { background-color: #0f172a !important; color: #e2e8f0 !important; border-color: #334155 !important; }
 .store-dark .bg-brand-soft { background-color: color-mix(in srgb, var(--brand) 18%, #111827) !important; }
 
+/* F-15 store design: a saved theme recolours every part of the storefront through CSS variables
+   (see lib/theme.ts). The dark-mode rules above still win when a shopper picks dark mode. */
+.store-themed { background-color: var(--st-bg); background-image: var(--st-bg-image); background-size: cover; background-attachment: fixed; color: var(--st-text); font-family: var(--st-font); }
+.store-themed h1, .store-themed h2, .store-themed h3, .store-themed h4 { font-family: var(--st-heading-font); }
+.store-themed:not(.store-dark) .bg-white, .store-themed:not(.store-dark) .bg-white\/90 { background-color: var(--st-surface); }
+.store-themed:not(.store-dark) .bg-slate-50 { background-color: color-mix(in srgb, var(--st-surface) 70%, var(--st-bg)); }
+.store-themed:not(.store-dark) .bg-slate-100 { background-color: color-mix(in srgb, var(--st-border) 55%, var(--st-surface)); }
+.store-themed:not(.store-dark) .text-slate-900, .store-themed:not(.store-dark) .text-slate-800 { color: var(--st-text); }
+.store-themed:not(.store-dark) .text-slate-700, .store-themed:not(.store-dark) .text-slate-600 { color: color-mix(in srgb, var(--st-text) 70%, var(--st-muted)); }
+.store-themed:not(.store-dark) .text-slate-500, .store-themed:not(.store-dark) .text-slate-400 { color: var(--st-muted); }
+.store-themed:not(.store-dark) .border-slate-200, .store-themed:not(.store-dark) .border-slate-300, .store-themed:not(.store-dark) .divide-slate-100 > * { border-color: var(--st-border); }
+.store-themed:not(.store-dark) input, .store-themed:not(.store-dark) select, .store-themed:not(.store-dark) textarea { background-color: var(--st-surface); color: var(--st-text); border-color: var(--st-border); }
+.store-themed .max-w-6xl { max-width: var(--st-width); }
+.store-themed .rounded-2xl, .store-themed .rounded-xl { border-radius: var(--st-radius); }
+.store-themed .rounded-lg { border-radius: min(var(--st-radius), 10px); }
+.store-themed .btn-brand { color: var(--st-button-text); border-radius: min(var(--st-radius), 999px); }
+.store-themed .text-brand { color: var(--st-link); }
+.store-themed .bg-rose-500 { background-color: var(--st-sale); }
+.store-themed .st-header { background-color: var(--st-header); color: var(--st-header-text); border-color: color-mix(in srgb, var(--st-header-text) 12%, var(--st-header)); }
+.store-themed .st-header a, .store-themed .st-header button, .store-themed .st-header .text-brand, .store-themed .st-header .text-slate-600 { color: var(--st-header-text); }
+.store-themed .st-header .hover\:bg-slate-100:hover { background-color: color-mix(in srgb, var(--st-header-text) 10%, transparent); }
+.store-themed .st-footer { background-color: var(--st-footer); border-color: color-mix(in srgb, var(--st-footer-text) 15%, var(--st-footer)); }
+.store-themed .st-footer, .store-themed .st-footer .text-slate-500, .store-themed .st-footer a { color: var(--st-footer-text); }
+.store-themed .st-announce { background-color: var(--st-announce); color: var(--st-announce-text); }
+.store-themed .st-hero { background-image: linear-gradient(135deg, var(--st-hero-from), var(--st-hero-to)); color: var(--st-hero-text); }
+.store-themed .st-hero .text-white, .store-themed .st-hero .text-white\/80, .store-themed .st-hero .text-white\/90 { color: var(--st-hero-text); }
+@media (min-width: 768px) { .store-themed .st-grid { grid-template-columns: repeat(var(--st-cols), minmax(0, 1fr)); } }
+.store-themed.st-card-border .st-grid > li { box-shadow: none; }
+.store-themed.st-card-flat .st-grid > li { box-shadow: none; border-color: transparent; background: transparent; }
+
 /* Urdu: a Nastaliq-friendly stack, a bit more line height. */
 [lang="ur"], [lang="pa"] { font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", var(--font-geist-sans), sans-serif; line-height: 1.9; }
 /* Arabic, Hindi and Chinese use the system's fonts for their scripts. */

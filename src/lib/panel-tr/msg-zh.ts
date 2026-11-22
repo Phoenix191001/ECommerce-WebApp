@@ -207,4 +207,6 @@ export const zhMsg: Record<string, string> = {
   "Add it to the plan on the Plans page first.": "请先在套餐页面将其加入套餐。",
   "{0} ({1}) is locked by the platform admin.": "{0}（{1}）已被平台管理员锁定。",
   "Contact support to change it.": "如需更改请联系客服。",
+  "Design saved. Your store now uses it.": "设计已保存，店铺已应用。",
+  "Design reset to the default look.": "设计已恢复为默认外观。",
 };

@@ -10,6 +10,9 @@ import { broadcastPush, pushConfigured } from "@/lib/push";
 import { APP_MAP } from "@/lib/apps";
 import { alertApps } from "@/lib/app-alerts";
 import { LANG_CODES, isLang } from "@/lib/languages";
+import { cleanTheme } from "@/lib/theme";
+import { platformDb } from "@/lib/db";
+import { platformModels } from "@/lib/models/platform";
 
 type S = { error?: string; ok?: string } | undefined;
 const off = (id: string, name: string): S => ({ error: `${name} (${id}) is turned off. Turn it on in Features first.` });
@@ -273,4 +276,24 @@ export async function saveLanguages(site: string, _: S, form: FormData): Promise
   await auditLog(store, actorOf(user), "settings.languages", undefined, store.settings.languages, languages);
   refreshStore(store);
   return { ok: `Shoppers can choose: ${languages.length} language(s).` };
+}
+
+// ---------- Store design (F-15) ----------
+
+/** Saves the whole design from the Design page. `reset` goes back to the plain look (brand colour only). */
+export async function saveDesign(site: string, raw: unknown, reset = false): Promise<S> {
+  const { store, user } = await staffCtx(site, "settings");
+  if (!store.features["F-15"]) return off("F-15", "Storefront theme switching");
+  const { Instance } = platformModels(await platformDb());
+  if (reset) {
+    await Instance.updateOne({ _id: store.id }, { $unset: { "branding.theme": 1 } });
+    await auditLog(store, actorOf(user), "settings.design", undefined, "custom", "default");
+    refreshStore(store);
+    return { ok: "Design reset to the default look." };
+  }
+  const theme = cleanTheme(raw);
+  await Instance.updateOne({ _id: store.id }, { $set: { "branding.theme": theme, "branding.primaryColor": theme.button } });
+  await auditLog(store, actorOf(user), "settings.design", undefined, undefined, { preset: theme.preset });
+  refreshStore(store);
+  return { ok: "Design saved. Your store now uses it." };
 }

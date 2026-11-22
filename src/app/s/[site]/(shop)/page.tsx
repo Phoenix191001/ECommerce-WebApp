@@ -10,6 +10,7 @@ import { abVariants } from "@/lib/ab";
 import { displayCurrency } from "@/lib/currency";
 import { Blocks } from "@/components/store/blocks";
 import { cleanBlocks } from "@/lib/blocks";
+import { storeTheme } from "@/lib/theme";
 
 type Props = {
   params: Promise<{ site: string }>;
@@ -37,14 +38,18 @@ export default async function StoreHome({ params, searchParams }: Props) {
     if (blocks.length) return <main className="pb-8"><Blocks blocks={blocks} store={store} site={site} L={t} cur={cur} /></main>;
   }
 
+  const theme = storeTheme(store);
+  const heroImg = ab.hero ?? (theme?.heroImage || "");
+  const centered = theme?.heroAlign === "center";
   const hero = (
-    <section className="bg-brand-gradient relative overflow-hidden text-white" style={ab.hero ? { backgroundImage: `linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,.35)),url("${encodeURI(ab.hero)}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
+    <section className={`${theme ? "st-hero" : "bg-brand-gradient"} relative overflow-hidden text-white ${centered ? "text-center" : ""}`} style={heroImg ? { backgroundImage: `linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,.35)),url("${encodeURI(heroImg)}")`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
       <div className="absolute -end-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
       <div className="absolute -bottom-20 start-10 h-48 w-48 rounded-full bg-white/10" />
       <div className="relative mx-auto max-w-6xl px-4 py-14">
         <p className="text-sm font-semibold uppercase tracking-widest text-white/80">{t.welcomeTo}</p>
-        <h1 className="mt-1 text-4xl font-extrabold sm:text-5xl">{store.name}</h1>
-        {tagline && <p className="mt-3 max-w-xl text-lg text-white/90">{tagline}</p>}
+        <h1 className="mt-1 text-4xl font-extrabold sm:text-5xl">{theme?.heroTitle || store.name}</h1>
+        {(theme?.heroSubtitle || tagline) && <p className={`mt-3 max-w-xl text-lg text-white/90 ${centered ? "mx-auto" : ""}`}>{ab.headline ?? (theme?.heroSubtitle || tagline)}</p>}
+        {theme?.heroButton && f["F-01"] && <a href="#products" className="mt-5 inline-block rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-slate-900 shadow hover:brightness-95">{theme.heroButton}</a>}
         {f["F-58"] && store.settings.freeShippingThreshold > 0 && (
           <p className="mt-5 inline-block rounded-full bg-white/20 px-4 py-1.5 text-sm font-medium backdrop-blur">
             🚚 {t.freeDeliveryOver} {formatMoney(store.settings.freeShippingThreshold, store.currency)}
@@ -164,7 +169,7 @@ export default async function StoreHome({ params, searchParams }: Props) {
             <p className="mt-2 text-slate-600">{search || sp.cat || sp.brand || sp.tag ? t.noMatch : t.noProducts}</p>
           </div>
         ) : (
-          <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          <ul id="products" className="st-grid grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {products.map((p) => <ProductCard cur={cur} key={String(p._id)} p={p} site={site} base={b} currency={store.currency} f={f} L={t} />)}
           </ul>
         )}

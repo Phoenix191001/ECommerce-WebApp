@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getStore } from "@/lib/tenant";
+import { storeTheme, themeVars } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function StoreRoot({ children, params }: Props) {
   const store = await getStore((await params).site);
   if (!store) notFound();
   return (
-    <div className="min-h-screen w-full" style={{ ["--brand" as string]: store.branding.primaryColor }}>
+    <div className="min-h-screen w-full" style={(() => { const th = storeTheme(store); return th ? themeVars(th) : { ["--brand" as string]: store.branding.primaryColor }; })()}>
       {children}
     </div>
   );

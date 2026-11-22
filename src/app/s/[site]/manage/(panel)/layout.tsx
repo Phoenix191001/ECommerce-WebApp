@@ -13,7 +13,7 @@ export default async function ManageLayout({ children, params }: Props) {
   const store = await requireStore(site);
   const user = await requireStaff(store);
   const f = store.features;
-  const { lang, p, dir, tr } = await panelPrefs(store);
+  const { lang, p, dir, tr, t: T } = await panelPrefs(store);
   const b = `${store.base}/manage`;
   const nav: { href: string; label: string; icon: string; perm: Permission; show?: boolean; seller?: boolean }[] = [
     { href: `${b}/seller`, label: p.mySales, icon: "🏪", perm: "catalog", show: user.role === "seller", seller: true },
@@ -33,6 +33,7 @@ export default async function ManageLayout({ children, params }: Props) {
     { href: `${b}/pos`, label: p.pos, icon: "💵", perm: "pos", show: !!f["F-34"] },
     { href: `${b}/staff`, label: p.staff, icon: "🧑‍🤝‍🧑", perm: "staff", show: !!f["F-48"] },
     { href: `${b}/reports`, label: p.profit, icon: "📈", perm: "reports", show: !!f["F-82"] },
+    { href: `${b}/design`, label: T("Design"), icon: "🎨", perm: "settings" },
     { href: `${b}/content`, label: p.content, icon: "📝", perm: "settings" },
     { href: `${b}/experiments`, label: p.abTests, icon: "🧪", perm: "settings", show: !!f["F-78"] },
     { href: `${b}/notifications`, label: p.notifications, icon: "🔔", perm: "settings", show: !!f["F-109"] },

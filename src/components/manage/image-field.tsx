@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import { usePT } from "@/components/manage/panel-lang";
 
@@ -9,7 +9,7 @@ import { usePT } from "@/components/manage/panel-lang";
  * The chosen URLs are submitted as one hidden field, one URL per line.
  */
 export function ImageField({
-  name, initial = [], uploadUrl, folder, max = 12, single = false,
+  name, initial = [], uploadUrl, folder, max = 12, single = false, onChange,
 }: {
   name: string;
   initial?: string[];
@@ -17,6 +17,8 @@ export function ImageField({
   folder: string;
   max?: number;
   single?: boolean;
+  /** Called whenever the chosen images change (for live previews). */
+  onChange?: (urls: string[]) => void;
 }) {
   const T = usePT();
   const [urls, setUrls] = useState<string[]>(initial.filter(Boolean));
@@ -25,6 +27,12 @@ export function ImageField({
   const [link, setLink] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const limit = single ? 1 : max;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    onChange?.(urls);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urls]);
 
   const add = (u: string) => setUrls((cur) => (single ? [u] : cur.includes(u) ? cur : [...cur, u].slice(0, limit)));
 

@@ -207,4 +207,6 @@ export const paMsg: Record<string, string> = {
   "Add it to the plan on the Plans page first.": "پہلاں پلان صفحے تے ایہنوں پلان وچ پاؤ۔",
   "{0} ({1}) is locked by the platform admin.": "{0} ({1}) نوں پلیٹ فارم ایڈمن نے تالا لایا اے۔",
   "Contact support to change it.": "بدلن لئی سپورٹ نال رابطہ کرو۔",
+  "Design saved. Your store now uses it.": "ڈیزائن رکھیا گیا۔ تہاڈی دکان ہُن ایہی ورتدی اے۔",
+  "Design reset to the default look.": "ڈیزائن مقررہ شکل تے واپس ہو گیا۔",
 };

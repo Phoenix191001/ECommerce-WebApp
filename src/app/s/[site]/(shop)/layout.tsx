@@ -17,6 +17,7 @@ import { abVariants } from "@/lib/ab";
 import { storeModels } from "@/lib/tenant";
 import { PushOptIn } from "@/components/store/push";
 import { pushConfigured, pushPublicKey } from "@/lib/push";
+import { fontHref, storeTheme } from "@/lib/theme";
 
 type Props = { children: React.ReactNode; params: Promise<{ site: string }> };
 
@@ -52,19 +53,23 @@ export default async function ShopLayout({ children, params }: Props) {
   const cur = await displayCurrency(store);
   const currencies = f["F-55"] ? store.settings.currencies.map((c) => c.code) : [];
   const apps = f["F-114"] ? store.settings.apps : [];
+  const theme = storeTheme(store);
+  const fonts = theme ? fontHref(theme) : "";
   const salesPop = activeApps(apps).some((a) => a.id === "salespop") ? await recentSales(store) : [];
 
   return (
-    <div lang={lang} dir={dir} className={`flex min-h-screen flex-col bg-slate-50 text-slate-900 ${dark ? "store-dark" : ""}`}>
+    <div lang={lang} dir={dir} className={`flex min-h-screen flex-col bg-slate-50 text-slate-900 ${dark ? "store-dark" : ""} ${theme ? `store-themed st-card-${theme.cardStyle}` : ""}`}>
+      {fonts && <link rel="stylesheet" href={fonts} />}
+      {theme?.favicon && <link rel="icon" href={theme.favicon} />}
       {f["F-86"] && <link rel="manifest" href={`${b}/manifest.webmanifest`} />}
       {f["F-115"] && store.settings.customCss && (
         // Owner-provided CSS; "</" is stripped so it cannot close the style tag.
         <style dangerouslySetInnerHTML={{ __html: store.settings.customCss.replace(/<\//g, "") }} />
       )}
       {(f["F-118"] || ab.announcement) && announcement && (
-        <div className="bg-brand px-4 py-2 text-center text-sm font-medium text-white">{announcement}</div>
+        <div className="st-announce bg-brand px-4 py-2 text-center text-sm font-medium text-white">{announcement}</div>
       )}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+      <header className="st-header sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <Link href={b || "/"} className="flex items-center gap-2 text-lg font-bold">
             {store.branding.logoUrl ? (
@@ -93,7 +98,7 @@ export default async function ShopLayout({ children, params }: Props) {
         </div>
       </header>
       <div className="flex-1">{children}</div>
-      <footer className="mt-16 border-t border-slate-200 bg-white">
+      <footer className="st-footer mt-16 border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-6 px-4 py-8 text-sm text-slate-500">
           <div className="space-y-2">
             <p>© {new Date().getFullYear()} {store.name}{store.settings.contactEmail && <> · <a href={`mailto:${store.settings.contactEmail}`} className="hover:underline">{store.settings.contactEmail}</a></>}</p>
