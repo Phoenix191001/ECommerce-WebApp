@@ -7,7 +7,7 @@ const { chromium } = require("playwright");
 async function opened(p, id) {
   const sw = p.locator(`button[role=switch][aria-label^="${id} "]`);
   const closed = p.locator("details:not([open])", { has: sw });
-  if (await closed.count()) await closed.locator("summary").click();
+  if (await closed.count()) await closed.locator(":scope > summary").click();
   return sw;
 }
 const { TOTP, Secret } = require("otpauth");
